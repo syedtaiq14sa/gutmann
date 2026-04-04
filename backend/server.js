@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const socketIo = require('socket.io');
+const rateLimit = require('express-rate-limit');
 
 const authRoutes = require('./src/routes/auth');
 const projectRoutes = require('./src/routes/projects');
@@ -30,6 +31,14 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Global API rate limiter
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 500,
+  message: { error: 'Too many requests, please try again later' }
+});
+app.use('/api/', apiLimiter);
 
 // Make io available in routes
 app.use((req, res, next) => {

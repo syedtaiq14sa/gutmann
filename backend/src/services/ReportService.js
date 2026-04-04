@@ -61,12 +61,15 @@ class ReportService {
 
   getStartDate(range) {
     const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const day = now.getDate();
     switch (range) {
-      case 'week': return new Date(new Date().setDate(now.getDate() - 7));
-      case 'month': return new Date(new Date().setMonth(now.getMonth() - 1));
-      case 'quarter': return new Date(new Date().setMonth(now.getMonth() - 3));
-      case 'year': return new Date(new Date().setFullYear(now.getFullYear() - 1));
-      default: return new Date(new Date().setMonth(now.getMonth() - 1));
+      case 'week': return new Date(year, month, day - 7);
+      case 'month': return new Date(year, month - 1, day);
+      case 'quarter': return new Date(year, month - 3, day);
+      case 'year': return new Date(year - 1, month, day);
+      default: return new Date(year, month - 1, day);
     }
   }
 }
