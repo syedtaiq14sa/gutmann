@@ -56,27 +56,7 @@ The migration creates the following tables:
 
 ---
 
-## Step 4: Seed Test Users
-
-1. In the **SQL Editor**, create another **New query**.
-2. Open `database/seeds/test_users.sql` from this repository.
-3. Paste the entire file content and click **Run ▶**.
-4. You will have one test user for each role (see table below).
-
-| Email | Password | Role |
-|---|---|---|
-| `ceo@gutmann.com` | `Admin@123` | CEO |
-| `sales@gutmann.com` | `Sales@123` | Salesperson |
-| `qc@gutmann.com` | `QC@12345` | QC |
-| `tech@gutmann.com` | `Tech@123` | Technical |
-| `estimation@gutmann.com` | `Est@1234` | Estimation |
-| `client@gutmann.com` | `Client@12` | Client |
-
-> These are **development/testing** credentials. Change all passwords before going to production.
-
----
-
-## Step 5: (Optional) Enable Row Level Security
+## Step 4: (Optional) Enable Row Level Security
 
 The schema does not enable RLS by default so that the backend service role can manage all rows freely. If you want to add RLS policies later:
 
