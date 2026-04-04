@@ -13,7 +13,7 @@ function SalesPersonDashboard() {
     dispatch(fetchDashboardData());
   }, [dispatch]);
 
-  const myProjects = projects.filter(p => p.assigned_salesperson_id === 'me');
+  const myProjects = projects.filter(p => p.created_by === user?.id);
 
   if (loading) return <div className="loading-spinner">Loading...</div>;
 
