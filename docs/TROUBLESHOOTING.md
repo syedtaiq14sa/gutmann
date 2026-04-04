@@ -101,9 +101,7 @@ Common issues encountered when setting up and running the Gutmann Workflow Manag
 
 ### Login fails with "Invalid credentials"
 - **Cause**: The user does not exist in the database, or the password is wrong.
-- **Fix**:
-  - Register a new user via the API (see `docs/TESTING_GUIDE.md`).
-  - Or use the registration endpoint to create an account first.
+- **Fix**: Register a new user via the API registration endpoint (see `docs/TESTING_GUIDE.md`).
 
 ### `REACT_APP_*` variables not picked up in production
 - **Cause**: Environment variables must be set before the React build runs; they are baked into the static bundle.
