@@ -23,8 +23,23 @@ This document provides the instructions for deploying both the backend and front
 
 Add the following environment variables in the Render dashboard under the **Environment** section:
 
-- `DATABASE_URL`: URL for your database.
-- `API_KEY`: Your API key for external services.
+| Variable | Value |
+|---|---|
+| `SUPABASE_URL` | `https://ewjbhcqnkbuxbvstdbnc.supabase.co` |
+| `SUPABASE_ANON_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3amJoY3Fua2J1eGJ2c3RkYm5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNzk4MzMsImV4cCI6MjA5MDg1NTgzM30.8Sc3uPYNg8NGcn_Qwc5pCs1TIM_mdDnXx8KwuO3ajgo` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Retrieve from **Supabase → Project Settings → API → service_role** |
+| `DATABASE_URL` | `postgresql://postgres:[YOUR-PASSWORD]@db.ewjbhcqnkbuxbvstdbnc.supabase.co:5432/postgres` |
+| `JWT_SECRET` | Generate a strong random string (e.g., `openssl rand -hex 32`) |
+| `PORT` | `3001` |
+| `NODE_ENV` | `production` |
+| `FRONTEND_URL` | Your Render frontend URL (e.g., `https://gutmann-frontend.onrender.com`) |
+
+**How to add variables in Render:**
+1. Open your Web Service in the Render dashboard.
+2. Click **Environment** in the left sidebar.
+3. Click **Add Environment Variable** for each row above.
+4. Enter the exact variable name and value, then click **Save Changes**.
+5. Render will automatically redeploy the service with the new variables.
 
 ### Step 3: Build Command
 
@@ -54,7 +69,19 @@ npm start
 
 Add any necessary environment variables for the frontend:
 
-- `REACT_APP_API_URL`: The base URL for your backend API.
+| Variable | Value |
+|---|---|
+| `REACT_APP_API_URL` | Your Render backend URL + `/api` (e.g., `https://gutmann-backend.onrender.com/api`) |
+| `REACT_APP_SUPABASE_URL` | `https://ewjbhcqnkbuxbvstdbnc.supabase.co` |
+| `REACT_APP_SUPABASE_ANON_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3amJoY3Fua2J1eGJ2c3RkYm5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNzk4MzMsImV4cCI6MjA5MDg1NTgzM30.8Sc3uPYNg8NGcn_Qwc5pCs1TIM_mdDnXx8KwuO3ajgo` |
+| `REACT_APP_SOCKET_URL` | Your Render backend URL (e.g., `https://gutmann-backend.onrender.com`) |
+
+**How to add variables in Render:**
+1. Open your Static Site in the Render dashboard.
+2. Click **Environment** in the left sidebar.
+3. Click **Add Environment Variable** for each row above.
+4. Enter the exact variable name and value, then click **Save Changes**.
+5. Render will automatically rebuild the site with the new variables.
 
 ### Step 3: Build Command
 
