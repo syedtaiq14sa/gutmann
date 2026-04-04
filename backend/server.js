@@ -7,12 +7,16 @@ const rateLimit = require('express-rate-limit');
 
 const authRoutes = require('./src/routes/auth');
 const projectRoutes = require('./src/routes/projects');
+const inquiryRoutes = require('./src/routes/inquiries');
 const qcRoutes = require('./src/routes/qc');
 const technicalRoutes = require('./src/routes/technical');
 const estimationRoutes = require('./src/routes/estimation');
 const ceoRoutes = require('./src/routes/ceo');
 const dashboardRoutes = require('./src/routes/dashboard');
 const notificationRoutes = require('./src/routes/notifications');
+const clientRoutes = require('./src/routes/client');
+const logger = require('./src/utils/logger');
+const { errorHandler, notFoundHandler } = require('./src/middleware/errorHandler');
 
 const app = express();
 const server = http.createServer(app);
@@ -31,6 +35,7 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(logger.httpLogger);
 
 // Global API rate limiter
 const apiLimiter = rateLimit({
@@ -49,12 +54,14 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/inquiries', inquiryRoutes);
 app.use('/api/qc', qcRoutes);
 app.use('/api/technical', technicalRoutes);
 app.use('/api/estimation', estimationRoutes);
 app.use('/api/ceo', ceoRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/client', clientRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -62,34 +69,27 @@ app.get('/api/health', (req, res) => {
 });
 
 // 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
+app.use(notFoundHandler);
 
 // Error handler
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal Server Error'
-  });
-});
+app.use(errorHandler);
 
 // Socket.IO
 io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
+  logger.info('Client connected', { socketId: socket.id });
 
   socket.on('join-room', (userId) => {
     socket.join(`user-${userId}`);
   });
 
   socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
+    logger.info('Client disconnected', { socketId: socket.id });
   });
 });
 
 const PORT = process.env.PORT || process.env.SERVER_PORT || 3001;
 server.listen(PORT, () => {
-  console.log(`GUTMANN Backend running on port ${PORT}`);
+  logger.info(`GUTMANN Backend running on port ${PORT}`);
 });
 
 module.exports = { app, server, io };

@@ -1,0 +1,241 @@
+const { supabaseAdmin } = require('../config/supabase');
+const WorkflowEngine = require('../services/WorkflowEngine');
+const NotificationService = require('../services/NotificationService');
+const { generateInquiryNumber, isBottleneck } = require('../utils/helpers');
+
+// POST /api/inquiries - Create new inquiry
+const createInquiry = async (req, res) => {
+  try {
+    const {
+      client_name, client_email, client_phone, client_company,
+      project_type, project_description, location, budget_range, priority
+    } = req.body;
+
+    const inquiry_number = generateInquiryNumber();
+
+    const { data, error } = await supabaseAdmin
+      .from('inquiries')
+      .insert([{
+        inquiry_number,
+        client_name,
+        client_email,
+        client_phone,
+        client_company,
+        project_type,
+        project_description,
+        location,
+        budget_range,
+        priority: priority || 'medium',
+        status: 'received',
+        created_by: req.user.id
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Log audit trail
+    await supabaseAdmin.from('audit_log').insert([{
+      action: 'inquiry_created',
+      entity_type: 'inquiry',
+      entity_id: data.id,
+      performed_by: req.user.id,
+      details: { inquiry_number }
+    }]);
+
+    // Notify QC team
+    await NotificationService.notifyRole('qc', 'New inquiry requires QC review', {
+      type: 'review_required',
+      inquiry_id: data.id,
+      inquiry_number
+    });
+
+    if (req.io) {
+      req.io.emit('new-inquiry', { inquiryId: data.id, inquiry_number });
+    }
+
+    res.status(201).json(data);
+  } catch (err) {
+    console.error('Create inquiry error:', err);
+    res.status(500).json({ error: 'Failed to create inquiry' });
+  }
+};
+
+// GET /api/inquiries - List all inquiries with filters
+const getAllInquiries = async (req, res) => {
+  try {
+    const { status, page = 1, limit = 20, search } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    let query = supabaseAdmin
+      .from('inquiries')
+      .select('*, quotations(final_price, estimated_cost)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + parseInt(limit) - 1);
+
+    // Role-based filtering
+    if (req.user.role === 'salesperson') {
+      query = query.eq('created_by', req.user.id);
+    } else if (req.user.role === 'qc') {
+      query = query.in('status', ['received', 'qc_review', 'qc_revision']);
+    } else if (req.user.role === 'technical') {
+      query = query.in('status', ['technical_review', 'technical_revision']);
+    } else if (req.user.role === 'estimation') {
+      query = query.eq('status', 'estimation');
+    }
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    if (search) {
+      query = query.or(`client_name.ilike.%${search}%,inquiry_number.ilike.%${search}%`);
+    }
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    res.json({ data, total: count, page: parseInt(page), limit: parseInt(limit) });
+  } catch (err) {
+    console.error('Get inquiries error:', err);
+    res.status(500).json({ error: 'Failed to fetch inquiries' });
+  }
+};
+
+// GET /api/inquiries/:id - Get inquiry details
+const getInquiryById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabaseAdmin
+      .from('inquiries')
+      .select('*, quotations(*), qc_reviews(*), technical_reviews(*)')
+      .eq('id', id)
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ error: 'Inquiry not found' });
+    }
+
+    res.json(data);
+  } catch (err) {
+    console.error('Get inquiry error:', err);
+    res.status(500).json({ error: 'Failed to fetch inquiry' });
+  }
+};
+
+// PUT /api/inquiries/:id - Update inquiry
+const updateInquiry = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      client_name, client_email, client_phone, client_company,
+      project_type, project_description, location, budget_range, priority
+    } = req.body;
+
+    const { data, error } = await supabaseAdmin
+      .from('inquiries')
+      .update({
+        client_name, client_email, client_phone, client_company,
+        project_type, project_description, location, budget_range, priority,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ error: 'Inquiry not found' });
+    }
+
+    await supabaseAdmin.from('audit_log').insert([{
+      action: 'inquiry_updated',
+      entity_type: 'inquiry',
+      entity_id: id,
+      performed_by: req.user.id
+    }]);
+
+    res.json(data);
+  } catch (err) {
+    console.error('Update inquiry error:', err);
+    res.status(500).json({ error: 'Failed to update inquiry' });
+  }
+};
+
+// GET /api/inquiries/:id/history - Get workflow history
+const getInquiryHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabaseAdmin
+      .from('audit_log')
+      .select('*')
+      .eq('entity_id', id)
+      .eq('entity_type', 'inquiry')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error('Get inquiry history error:', err);
+    res.status(500).json({ error: 'Failed to fetch inquiry history' });
+  }
+};
+
+// PUT /api/inquiries/:id/stage - Move inquiry to next stage
+const moveToStage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { new_status, notes } = req.body;
+
+    const { data: inquiry, error: fetchError } = await supabaseAdmin
+      .from('inquiries')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !inquiry) {
+      return res.status(404).json({ error: 'Inquiry not found' });
+    }
+
+    const canMove = WorkflowEngine.canTransition(inquiry.status, new_status, req.user.role);
+    if (!canMove) {
+      return res.status(400).json({
+        error: `Cannot transition from '${inquiry.status}' to '${new_status}' with role '${req.user.role}'`
+      });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('inquiries')
+      .update({ status: new_status, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await supabaseAdmin.from('audit_log').insert([{
+      action: 'stage_changed',
+      entity_type: 'inquiry',
+      entity_id: id,
+      performed_by: req.user.id,
+      details: { from: inquiry.status, to: new_status, notes }
+    }]);
+
+    if (req.io) {
+      req.io.emit('project-status-updated', { projectId: id, status: new_status });
+    }
+
+    res.json(data);
+  } catch (err) {
+    console.error('Move stage error:', err);
+    res.status(500).json({ error: 'Failed to update stage' });
+  }
+};
+
+module.exports = {
+  createInquiry,
+  getAllInquiries,
+  getInquiryById,
+  updateInquiry,
+  getInquiryHistory,
+  moveToStage
+};
