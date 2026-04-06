@@ -66,24 +66,20 @@ node scripts/generate-bcrypt-hashes.js "MyPassword@1" "AnotherPass@2"
 Generating bcrypt hashes with 12 rounds...
 
 Label : ceo
-Hash  : $2a$12$MMQYNZ0PvffLBX65iRwqdeXSz3v7hfRBGo0J7MABrs7DJ2iRTNSRi
+Hash  : $2a$12$hIEEFP/ftW2ySV/.TwsCj.GPkqrnJFA57la2LAN61m7307/cbQsxa
 
 Label : salesperson
-Hash  : $2a$12$3G2ts9fH5.q2URCNVT/EaOacjGBme0uzGTXZpkBcTNdi7seKmb7TO
+Hash  : $2a$12$6bFwE.s1zkitvjm2jeasguToA.9uXDKYU74oy4vlMZGoqzhExkhda
 
 Label : qc
-Hash  : $2a$12$O5xjNev7LZsAwjTJ5nBaeu4Wtn2ASdz3Jsqe2HwZQOb2QF7lQNEki
+Hash  : $2a$12$OlI/v/f1pguac6mdY9/Kku6cmtlA0/YF1MOLt73vz9pEjIShUisz6
 
 Label : technical
-Hash  : $2a$12$tbCZB7YK3md3cj4bFpD6N.LGXp2oURpGk5T/ytS0oppCGUNXy5WtW
+Hash  : $2a$12$EI4J3zILpyy8kVnacM0/jeVSGZSKteRX5OSxsxXNg.g2eXr3WtO5O
 
 Label : estimation
-Hash  : $2a$12$7.z2CbS6TdZfbPGyKlW6NOG.f8LUQuzsyE4h23NCixn8osroHrtrG
+Hash  : $2a$12$6zkLbpPF6wGyPbL2YlcmSu3sxY3WOjfvmJHngl9BWjxeuJuYvb2Wu
 ```
-
-> **Tip**: For the full seed with all 8 users and client accounts, run
-> `node scripts/gen_password_hash.js` or paste `database/seeds/test_users.sql`
-> directly into the Supabase SQL Editor.
 
 ---
 
@@ -93,21 +89,16 @@ Open **Supabase Dashboard → SQL Editor → New query**, paste the SQL below, t
 
 The statements are **idempotent**: they skip any email that already exists in the table.
 
-> **Recommended**: Use `database/seeds/test_users.sql` for the full 8-user seed with
-> pre-generated hashes. The SQL below covers the 5 core roles only and uses
-> `gen_random_uuid()` for IDs. Run `node scripts/generate-bcrypt-hashes.js` to
-> regenerate fresh hashes before inserting.
-
 ```sql
 -- pgcrypto provides gen_random_uuid(); safe to run even if already enabled.
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- CEO  (password: Admin@123)
+-- CEO  (password: Admin@12345)
 INSERT INTO public.users (id, email, password_hash, name, role, is_active, created_at, updated_at)
 SELECT
   gen_random_uuid(),
   'ceo@gutmann.com',
-  '$2a$12$MMQYNZ0PvffLBX65iRwqdeXSz3v7hfRBGo0J7MABrs7DJ2iRTNSRi',
+  '$2a$12$hIEEFP/ftW2ySV/.TwsCj.GPkqrnJFA57la2LAN61m7307/cbQsxa',
   'Ahmad Al-Rashid',
   'ceo',
   true,
@@ -117,12 +108,12 @@ WHERE NOT EXISTS (
   SELECT 1 FROM public.users WHERE email = 'ceo@gutmann.com'
 );
 
--- Salesperson  (password: Sales@123 — regenerate hash with: node scripts/generate-bcrypt-hashes.js)
+-- Salesperson  (password: Sales@12345)
 INSERT INTO public.users (id, email, password_hash, name, role, is_active, created_at, updated_at)
 SELECT
   gen_random_uuid(),
   'sales@gutmann.com',
-  '$2a$12$3G2ts9fH5.q2URCNVT/EaOacjGBme0uzGTXZpkBcTNdi7seKmb7TO',
+  '$2a$12$6bFwE.s1zkitvjm2jeasguToA.9uXDKYU74oy4vlMZGoqzhExkhda',
   'Sara Malik',
   'salesperson',
   true,
@@ -132,12 +123,12 @@ WHERE NOT EXISTS (
   SELECT 1 FROM public.users WHERE email = 'sales@gutmann.com'
 );
 
--- QC  (password: QC@1234)
+-- QC  (password: Qc@12345)
 INSERT INTO public.users (id, email, password_hash, name, role, is_active, created_at, updated_at)
 SELECT
   gen_random_uuid(),
   'qc@gutmann.com',
-  '$2a$12$O5xjNev7LZsAwjTJ5nBaeu4Wtn2ASdz3Jsqe2HwZQOb2QF7lQNEki',
+  '$2a$12$OlI/v/f1pguac6mdY9/Kku6cmtlA0/YF1MOLt73vz9pEjIShUisz6',
   'Fatima Zahra',
   'qc',
   true,
@@ -147,12 +138,12 @@ WHERE NOT EXISTS (
   SELECT 1 FROM public.users WHERE email = 'qc@gutmann.com'
 );
 
--- Technical  (password: Tech@123)
+-- Technical  (password: Tech@12345)
 INSERT INTO public.users (id, email, password_hash, name, role, is_active, created_at, updated_at)
 SELECT
   gen_random_uuid(),
   'technical@gutmann.com',
-  '$2a$12$tbCZB7YK3md3cj4bFpD6N.LGXp2oURpGk5T/ytS0oppCGUNXy5WtW',
+  '$2a$12$EI4J3zILpyy8kVnacM0/jeVSGZSKteRX5OSxsxXNg.g2eXr3WtO5O',
   'Khalid Ibrahim',
   'technical',
   true,
@@ -162,12 +153,12 @@ WHERE NOT EXISTS (
   SELECT 1 FROM public.users WHERE email = 'technical@gutmann.com'
 );
 
--- Estimation  (password: Est@1234)
+-- Estimation  (password: Est@12345)
 INSERT INTO public.users (id, email, password_hash, name, role, is_active, created_at, updated_at)
 SELECT
   gen_random_uuid(),
   'estimation@gutmann.com',
-  '$2a$12$7.z2CbS6TdZfbPGyKlW6NOG.f8LUQuzsyE4h23NCixn8osroHrtrG',
+  '$2a$12$6zkLbpPF6wGyPbL2YlcmSu3sxY3WOjfvmJHngl9BWjxeuJuYvb2Wu',
   'Nadia Hassan',
   'estimation',
   true,
@@ -205,12 +196,10 @@ The final `SELECT` should return 5 rows confirming all users were created.
 
 | Role         | Email                    | Password      |
 |--------------|--------------------------|---------------|
-| ceo          | ceo@gutmann.com          | Admin@123     |
-| salesperson  | sales@gutmann.com        | Sales@123     |
-| qc           | qc@gutmann.com           | QC@1234       |
-| technical    | technical@gutmann.com    | Tech@123      |
-| estimation   | estimation@gutmann.com   | Est@1234      |
+| ceo          | ceo@gutmann.com          | Admin@12345   |
+| salesperson  | sales@gutmann.com        | Sales@12345   |
+| qc           | qc@gutmann.com           | Qc@12345      |
+| technical    | technical@gutmann.com    | Tech@12345    |
+| estimation   | estimation@gutmann.com   | Est@12345     |
 
 > **Note**: These are development/test credentials only. Do not use them in production.
-> For the full 8-user seed (including two salesperson accounts and two client accounts),
-> use `database/seeds/test_users.sql` directly.
