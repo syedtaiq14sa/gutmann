@@ -13,6 +13,9 @@
  *
  * Requires: bcryptjs (installed in backend/)
  *   Run `npm ci` inside the backend/ directory first.
+ *
+ * NOTE: This script intentionally outputs bcrypt hashes for development
+ * use only. Default passwords match database/seeds/test_users.sql.
  */
 
 'use strict';
@@ -23,12 +26,13 @@ const bcrypt = require(path.join(__dirname, '..', 'backend', 'node_modules', 'bc
 
 const SALT_ROUNDS = 12; // must match AuthController.js
 
+// Default passwords match the core roles in database/seeds/test_users.sql
 const DEFAULT_PASSWORDS = [
-  { label: 'ceo',         plain: 'Admin@12345' },
-  { label: 'salesperson', plain: 'Sales@12345' },
-  { label: 'qc',          plain: 'Qc@12345' },
-  { label: 'technical',   plain: 'Tech@12345' },
-  { label: 'estimation',  plain: 'Est@12345' },
+  { label: 'ceo',         plain: 'Admin@123'  },
+  { label: 'salesperson', plain: 'Sales@123'  },
+  { label: 'qc',          plain: 'QC@1234'    },
+  { label: 'technical',   plain: 'Tech@123'   },
+  { label: 'estimation',  plain: 'Est@1234'   },
 ];
 
 async function main() {
@@ -40,6 +44,7 @@ async function main() {
   console.log(`Generating bcrypt hashes with ${SALT_ROUNDS} rounds...\n`);
 
   for (const entry of entries) {
+    // lgtm[js/clear-text-logging] - intentional: dev-only hash generator tool
     const hash = await bcrypt.hash(entry.plain, SALT_ROUNDS);
     console.log(`Label : ${entry.label}`);
     console.log(`Hash  : ${hash}`);
@@ -51,3 +56,4 @@ main().catch((err) => {
   console.error(err.message);
   process.exit(1);
 });
+
