@@ -1,13 +1,12 @@
 services:
-  # Backend API Service
+  # Backend Node Web Service
   - type: web
     name: gutmann-backend
     env: node
     region: oregon
     plan: free
-    rootDir: backend
-    buildCommand: npm install
-    startCommand: node server.js
+    buildCommand: cd backend && npm ci
+    startCommand: cd backend && npm start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
@@ -22,26 +21,20 @@ services:
         sync: false
       - key: JWT_SECRET
         generateValue: true
-      - key: JWT_EXPIRY
-        value: 7d
       - key: FRONTEND_URL
-        sync: false
-      - key: EMAIL_SERVICE
-        sync: false
-      - key: EMAIL_USER
-        sync: false
-      - key: EMAIL_PASS
-        sync: false
+        fromService:
+          name: gutmann-frontend
+          type: web
+          property: url
 
-  # Frontend React App
+  # Frontend Static Site
   - type: web
     name: gutmann-frontend
     env: static
     region: oregon
     plan: free
-    rootDir: frontend
-    buildCommand: npm install && npm run build
-    staticPublishPath: ./build
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/build
     headers:
       - path: /*
         name: Cache-Control
@@ -52,10 +45,5 @@ services:
         destination: /index.html
     envVars:
       - key: REACT_APP_API_URL
-        sync: false
-      - key: REACT_APP_SUPABASE_URL
-        sync: false
-      - key: REACT_APP_SUPABASE_ANON_KEY
-        sync: false
-      - key: REACT_APP_SOCKET_URL
+        # Set this to your backend URL + /api, e.g. https://gutmann-backend.onrender.com/api
         sync: false
