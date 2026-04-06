@@ -33,4 +33,6 @@ services:
     staticPublishPath: build
     envVars:
       - key: REACT_APP_API_URL
-        sync: false
+        value: https://gutmann-backend.onrender.com/api
+      - key: REACT_APP_SOCKET_URL
+        value: https://gutmann-backend.onrender.com

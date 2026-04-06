@@ -2,6 +2,10 @@ import { io } from 'socket.io-client';
 
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001';
 
+if (process.env.NODE_ENV === 'production' && (!process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_SOCKET_URL.includes('localhost'))) {
+  console.error('[Socket] REACT_APP_SOCKET_URL is not set or points to localhost in production. Set it to https://gutmann-backend.onrender.com');
+}
+
 let socket = null;
 
 const socketService = {
