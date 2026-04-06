@@ -27,11 +27,15 @@ const allowedOrigins = (() => {
     return process.env.CORS_ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean);
   }
   const defaults = [
-    'https://gutmann-frontend.onrender.com',
-    'https://gutmann-backend.onrender.com',
     process.env.FRONTEND_URL,
     'http://localhost:3000',
   ];
+  if (process.env.NODE_ENV === 'production') {
+    defaults.push(
+      'https://gutmann-frontend.onrender.com',
+      'https://gutmann-backend.onrender.com'
+    );
+  }
   return defaults.filter(Boolean);
 })();
 
@@ -41,7 +45,7 @@ const corsOptions = {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error(`CORS policy: origin ${origin} is not allowed`));
+      callback(new Error('CORS policy: origin not allowed'));
     }
   },
   credentials: true,
