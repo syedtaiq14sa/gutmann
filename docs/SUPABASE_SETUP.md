@@ -30,7 +30,8 @@
 
 ## Step 3: Load Test Data (Optional)
 
-1. In the SQL Editor, run `database/seeds/test_users.sql`
+1. In the SQL Editor, run `database/seeds/test_users.sql`  
+   (The file already contains bcrypt-hashed passwords matching the backend — see [CREATE_TEST_USERS.md](CREATE_TEST_USERS.md) for details and instructions on generating hashes for custom passwords.)
 2. Then run `database/seeds/sample_inquiries.sql`
 3. Verify data appears in Table Editor
 
