@@ -44,8 +44,7 @@ async function main() {
   console.log(`Generating bcrypt hashes with ${SALT_ROUNDS} rounds...\n`);
 
   for (const entry of entries) {
-    // lgtm[js/clear-text-logging] - intentional: dev-only hash generator tool
-    const hash = await bcrypt.hash(entry.plain, SALT_ROUNDS);
+    const hash = await bcrypt.hash(entry.plain, SALT_ROUNDS); // codeql[js/clear-text-logging] - intentional: dev-only hash generator tool
     console.log(`Label : ${entry.label}`);
     console.log(`Hash  : ${hash}`);
     console.log('');
