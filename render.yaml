@@ -2,8 +2,7 @@ services:
   # Backend (Node)
   - type: web
     name: gutmann-backend
-    runtime: node
-    region: oregon
+    env: node
     rootDir: backend
     buildCommand: npm ci
     startCommand: npm start
@@ -27,10 +26,22 @@ services:
   # Frontend (Static Site)
   - type: web
     name: gutmann-frontend
-    runtime: static
+    env: static
     rootDir: frontend
     buildCommand: npm ci && npm run build
     staticPublishPath: build
+    # IMPORTANT: React bakes env vars at build time.
+    # All REACT_APP_* variables below MUST be set in the Render dashboard
+    # before triggering a build, otherwise the app will have no API URL
+    # and all API calls will fail in production.
     envVars:
       - key: REACT_APP_API_URL
+        # Set to: https://gutmann-backend.onrender.com/api
+        sync: false
+      - key: REACT_APP_SOCKET_URL
+        # Set to: https://gutmann-backend.onrender.com
+        sync: false
+      - key: REACT_APP_SUPABASE_URL
+        sync: false
+      - key: REACT_APP_SUPABASE_ANON_KEY
         sync: false

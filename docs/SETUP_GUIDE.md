@@ -62,8 +62,15 @@ npm start
    - `database/migrations/001_initial_schema.sql`
 
 2. Optionally seed test data:
-   - `database/seeds/test_users.sql`
+   - `database/seeds/test_users.sql` (includes pre-generated `password_hash` values for `Test@1234`)
    - `database/seeds/sample_inquiries.sql`
+
+   > To generate bcrypt hashes for custom passwords, use the helper script:
+   > ```bash
+   > cd backend && npm install
+   > node ../scripts/generate_bcrypt_hash.js "YourPassword@1"
+   > ```
+   > See [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) for full SQL instructions.
 
 ---
 

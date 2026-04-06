@@ -96,10 +96,18 @@ In the Render dashboard, navigate to your **gutmann-frontend** static site → *
 | Key | Value |
 |---|---|
 | `REACT_APP_API_URL` | `https://gutmann-backend.onrender.com/api` |
+| `REACT_APP_SOCKET_URL` | `https://gutmann-backend.onrender.com` |
 | `REACT_APP_SUPABASE_URL` | `https://xxxxxxxxxxxx.supabase.co` |
 | `REACT_APP_SUPABASE_ANON_KEY` | `eyJ...` (anon/public key) |
 
-> **Important**: Frontend environment variables must be set **before** the build runs because they are baked in at build time by Create React App. If you change them later, trigger a manual redeploy.
+> ⚠️ **Critical – Build-Time Variables**: Create React App (CRA) bakes `REACT_APP_*` variables into the JavaScript bundle **at build time**, not at runtime. This means:
+> - You **must** set all four variables above in the Render dashboard **before** triggering a build.
+> - If you forget to set them (or add/change them later), you **must** trigger a manual redeploy so the new build picks them up.
+> - If `REACT_APP_API_URL` is missing at build time the app will have no backend URL and every API call will fail with a network error. The browser console will show an error like `[api] REACT_APP_API_URL is not set`.
+
+**How to trigger a manual redeploy after adding/changing env vars:**
+1. Open your **gutmann-frontend** static site in the Render dashboard.
+2. Click **Manual Deploy** → **Deploy latest commit**.
 
 ---
 
@@ -142,6 +150,7 @@ Then open the frontend URL in your browser and log in with a test account (see `
 | Build fails with `Cannot find module` | Confirm **Root Directory** is set to `backend` or `frontend` respectively |
 | Backend crashes on start | Check **Logs** tab – most likely a missing environment variable |
 | Frontend shows blank page | Open browser DevTools console; usually `REACT_APP_API_URL` is wrong |
+| **Login fails / API calls go to `localhost:3001`** | `REACT_APP_API_URL` was not set before the build. Add it in Render → **gutmann-frontend** → **Environment**, then trigger **Manual Deploy → Deploy latest commit** |
 | Free tier service sleeps | The Render free tier spins down after 15 minutes of inactivity. First request after sleep takes ~30 s. Upgrade to Starter ($7/mo) for always-on |
 | CORS errors in browser | Ensure `REACT_APP_API_URL` in frontend matches the exact backend URL (no trailing slash) |
 | `openssl rand -hex 32` unavailable on Windows | Use this alternative: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
