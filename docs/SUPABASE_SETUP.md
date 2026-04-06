@@ -30,10 +30,6 @@
 
 ## Step 3: Load Test Data (Optional)
 
-> **Important:** The `users` table stores passwords as bcrypt hashes in the `password_hash`
-> column. Never insert plaintext passwords. The seed file already contains pre-generated
-> bcrypt hashes for the default test password `Test@1234`.
-
 1. In the SQL Editor, run `database/seeds/test_users.sql`  
    (The file already contains bcrypt-hashed passwords matching the backend — see [CREATE_TEST_USERS.md](CREATE_TEST_USERS.md) for details and instructions on generating hashes for custom passwords.)
 2. Then run `database/seeds/sample_inquiries.sql`
