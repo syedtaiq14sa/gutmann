@@ -1,8 +1,8 @@
 services:
+  # Backend API
   - type: web
     name: gutmann-backend
     env: node
-    plan: free
     region: oregon
     rootDir: backend
     buildCommand: npm ci
@@ -24,10 +24,9 @@ services:
       - key: FRONTEND_URL
         sync: false
 
-  - type: web
+  # Frontend Static Site
+  - type: static
     name: gutmann-frontend
-    env: static
-    plan: free
     rootDir: frontend
     buildCommand: npm ci && npm run build
     staticPublishPath: build
