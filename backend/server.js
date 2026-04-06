@@ -21,18 +21,45 @@ const { errorHandler, notFoundHandler } = require('./src/middleware/errorHandler
 const app = express();
 const server = http.createServer(app);
 
+// Build the list of allowed CORS origins from env vars
+const allowedOrigins = (() => {
+  if (process.env.CORS_ALLOWED_ORIGINS) {
+    return process.env.CORS_ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean);
+  }
+  const defaults = [
+    process.env.FRONTEND_URL,
+    'http://localhost:3000',
+  ];
+  if (process.env.NODE_ENV === 'production') {
+    defaults.push(
+      'https://gutmann-frontend.onrender.com',
+      'https://gutmann-backend.onrender.com'
+    );
+  }
+  return defaults.filter(Boolean);
+})();
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // allow requests with no origin (e.g. server-to-server, curl)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS policy: origin not allowed'));
+    }
+  },
+  credentials: true,
+};
+
 const io = socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: allowedOrigins,
     methods: ['GET', 'POST']
   }
 });
 
 // Middleware
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
-}));
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(logger.httpLogger);
