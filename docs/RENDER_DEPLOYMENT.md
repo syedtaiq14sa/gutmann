@@ -72,9 +72,11 @@ Add any necessary environment variables for the frontend:
 | Variable | Value |
 |---|---|
 | `REACT_APP_API_URL` | Your Render backend URL + `/api` (e.g., `https://gutmann-backend.onrender.com/api`) |
+| `REACT_APP_SOCKET_URL` | Your Render backend URL (e.g., `https://gutmann-backend.onrender.com`) |
 | `REACT_APP_SUPABASE_URL` | `https://ewjbhcqnkbuxbvstdbnc.supabase.co` |
 | `REACT_APP_SUPABASE_ANON_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3amJoY3Fua2J1eGJ2c3RkYm5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNzk4MzMsImV4cCI6MjA5MDg1NTgzM30.8Sc3uPYNg8NGcn_Qwc5pCs1TIM_mdDnXx8KwuO3ajgo` |
-| `REACT_APP_SOCKET_URL` | Your Render backend URL (e.g., `https://gutmann-backend.onrender.com`) |
+
+> ⚠️ **Critical**: These variables are baked into the React build at **build time** by Create React App. You **must** set them in the Render dashboard **before** triggering a build. If they are missing, the app will have no backend URL and all API/Socket calls will fail. After updating env vars, always trigger a **Manual Deploy** to rebuild.
 
 **How to add variables in Render:**
 1. Open your Static Site in the Render dashboard.
