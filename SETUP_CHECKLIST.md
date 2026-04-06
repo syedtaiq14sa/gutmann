@@ -13,7 +13,6 @@ Use this checklist to track your progress when setting up the Gutmann Workflow M
 - [ ] Copied `SUPABASE_ANON_KEY` from **Settings → API**
 - [ ] Copied `SUPABASE_SERVICE_ROLE_KEY` from **Settings → API**
 - [ ] Ran `database/migrations/001_initial_schema.sql` in the SQL Editor – all 10 tables created ✅
-- [ ] Ran `database/seeds/test_users.sql` in the SQL Editor – 6 test users created ✅
 
 ---
 
