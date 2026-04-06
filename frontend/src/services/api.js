@@ -1,6 +1,14 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+if (!process.env.REACT_APP_API_URL) {
+  throw new Error(
+    '[api] REACT_APP_API_URL is not set. ' +
+    'Set it to your backend URL (e.g. https://gutmann-backend.onrender.com/api) ' +
+    'in Render → gutmann-frontend → Environment, then redeploy.'
+  );
+}
+
+const API_URL = process.env.REACT_APP_API_URL;
 
 if (process.env.NODE_ENV === 'production' && (!process.env.REACT_APP_API_URL || process.env.REACT_APP_API_URL.includes('localhost'))) {
   console.error('[API] REACT_APP_API_URL is not set or points to localhost in production. Set it to https://gutmann-backend.onrender.com/api');
