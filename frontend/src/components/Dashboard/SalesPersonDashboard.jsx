@@ -8,6 +8,7 @@ function SalesPersonDashboard() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { projects, loading } = useSelector(state => state.projects);
+  const { user } = useSelector(state => state.auth);
 
   useEffect(() => {
     dispatch(fetchDashboardData());
