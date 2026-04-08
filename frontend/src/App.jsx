@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import Login from './pages/Login';
@@ -14,6 +14,10 @@ import './App.css';
 function App() {
   const dispatch = useDispatch();
   const { user, isAuthenticated, loading } = useSelector(state => state.auth);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const toggleSidebar = useCallback(() => setSidebarOpen(prev => !prev), []);
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
   useEffect(() => {
     dispatch(checkAuth());
@@ -27,9 +31,12 @@ function App() {
     <Router>
       {isAuthenticated ? (
         <div className="app-layout">
-          <Header />
+          <Header onToggleSidebar={toggleSidebar} />
           <div className="app-container">
-            <Sidebar userRole={user?.role} />
+            <Sidebar userRole={user?.role} isOpen={sidebarOpen} onClose={closeSidebar} />
+            {sidebarOpen && (
+              <div className="sidebar-overlay" onClick={closeSidebar} aria-hidden="true" />
+            )}
             <main className="main-content">
               <Routes>
                 <Route path="/dashboard" element={<Dashboard />} />
