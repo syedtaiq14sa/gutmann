@@ -96,3 +96,30 @@
   font-size: 13px;
   border-left: 4px solid #43a047;
 }
+
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper input {
+  padding-right: 40px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: #7f8c8d;
+  display: flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.password-toggle:hover {
+  color: #3498db;
+}
