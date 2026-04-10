@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import api from '../services/api';
+import QCReviewForm from '../components/Forms/QCReviewForm';
 
 function ProjectDetails() {
   const { id } = useParams();
@@ -11,6 +12,7 @@ function ProjectDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sendingToQC, setSendingToQC] = useState(false);
+  const [showQCReviewForm, setShowQCReviewForm] = useState(false);
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -59,6 +61,15 @@ function ProjectDetails() {
             {sendingToQC ? 'Sending...' : 'Send to QC'}
           </button>
         )}
+        {user?.role === 'qc' && project.status === 'qc_review' && (
+          <button
+            onClick={() => setShowQCReviewForm(true)}
+            className="btn-primary"
+            style={{ marginLeft: '16px' }}
+          >
+            Review / Approve
+          </button>
+        )}
       </div>
 
       <div className="details-grid">
@@ -90,6 +101,21 @@ function ProjectDetails() {
           </div>
         )}
       </div>
+      {showQCReviewForm && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <QCReviewForm
+              inquiry={project}
+              onSuccess={async () => {
+                setShowQCReviewForm(false);
+                const response = await api.get(`/projects/${id}`);
+                setProject(response.data);
+              }}
+              onCancel={() => setShowQCReviewForm(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
