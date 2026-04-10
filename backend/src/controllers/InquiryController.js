@@ -44,11 +44,13 @@ const createInquiry = async (req, res) => {
     }]);
 
     // Notify QC team
-    await NotificationService.notifyRole('qc', 'New inquiry requires QC review', {
-      type: 'review_required',
-      inquiry_id: data.id,
-      inquiry_number
-    });
+    await NotificationService.notifyRoleUsers(
+      'qc',
+      'New Inquiry Requires Review',
+      `New inquiry ${inquiry_number} requires QC review`,
+      'review_required',
+      data.id
+    );
 
     if (req.io) {
       req.io.emit('new-inquiry', { inquiryId: data.id, inquiry_number });
