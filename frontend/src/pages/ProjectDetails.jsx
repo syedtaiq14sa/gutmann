@@ -15,6 +15,16 @@ function ProjectDetails() {
   const [showQCReviewForm, setShowQCReviewForm] = useState(false);
 
   useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setShowQCReviewForm(false);
+    };
+    if (showQCReviewForm) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showQCReviewForm]);
+
+  useEffect(() => {
     const fetchProject = async () => {
       try {
         const response = await api.get(`/projects/${id}`);
@@ -102,14 +112,19 @@ function ProjectDetails() {
         )}
       </div>
       {showQCReviewForm && (
-        <div className="modal-overlay">
+        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="qc-review-title">
           <div className="modal-content">
             <QCReviewForm
               inquiry={project}
+              titleId="qc-review-title"
               onSuccess={async () => {
                 setShowQCReviewForm(false);
-                const response = await api.get(`/projects/${id}`);
-                setProject(response.data);
+                try {
+                  const response = await api.get(`/projects/${id}`);
+                  setProject(response.data);
+                } catch (err) {
+                  setError('Review submitted, but failed to refresh project data.');
+                }
               }}
               onCancel={() => setShowQCReviewForm(false)}
             />
