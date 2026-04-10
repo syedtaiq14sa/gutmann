@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { fetchDashboardData } from '../../store/projectSlice';
 import InquiryForm from '../Forms/InquiryForm';
+import api from '../../services/api';
 import '../../styles/dashboard.css';
 
 function SalesPersonDashboard() {
@@ -10,6 +11,7 @@ function SalesPersonDashboard() {
   const navigate = useNavigate();
   const { projects, loading } = useSelector(state => state.projects);
   const [showInquiryForm, setShowInquiryForm] = useState(false);
+  const [sendingToQC, setSendingToQC] = useState(null);
 
   useEffect(() => {
     dispatch(fetchDashboardData());
@@ -28,6 +30,18 @@ function SalesPersonDashboard() {
   const handleInquirySuccess = () => {
     setShowInquiryForm(false);
     dispatch(fetchDashboardData());
+  };
+
+  const handleSendToQC = async (projectId) => {
+    setSendingToQC(projectId);
+    try {
+      await api.put(`/inquiries/${projectId}/stage`, { new_status: 'qc_review' });
+      dispatch(fetchDashboardData());
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to send to QC');
+    } finally {
+      setSendingToQC(null);
+    }
   };
 
   if (loading) return <div className="loading-spinner">Loading...</div>;
@@ -87,6 +101,16 @@ function SalesPersonDashboard() {
                 <td>{new Date(project.created_at).toLocaleDateString()}</td>
                 <td>
                   <button onClick={() => navigate(`/projects/${project.id}`)} className="btn-primary btn-sm">View</button>
+                  {project.status === 'received' && (
+                    <button
+                      onClick={() => handleSendToQC(project.id)}
+                      className="btn-secondary btn-sm"
+                      disabled={sendingToQC === project.id}
+                      style={{ marginLeft: '8px' }}
+                    >
+                      {sendingToQC === project.id ? 'Sending...' : 'Send to QC'}
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
