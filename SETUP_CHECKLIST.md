@@ -60,7 +60,7 @@ Use this checklist to track your progress when setting up the Gutmann Workflow M
 | CEO login | `ceo@gutmann.com` / `Admin@123` |
 | Salesperson login | `sales@gutmann.com` / `Sales@123` |
 | QC login | `qc@gutmann.com` / `QC@12345` |
-| Technical login | `tech@gutmann.com` / `Tech@123` |
+| Technical login | `technical@gutmann.com` / `Tech@123` |
 | Estimation login | `estimation@gutmann.com` / `Est@1234` |
 | Client login | `client@gutmann.com` / `Client@12` |
 

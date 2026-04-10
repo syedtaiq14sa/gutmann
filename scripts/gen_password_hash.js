@@ -55,13 +55,11 @@ const SALT_ROUNDS = 12; // must match backend/src/controllers/AuthController.js
 /** Default test users matching database/seeds/test_users.sql */
 const TEST_USERS = [
   { email: 'ceo@gutmann.com',        password: 'Admin@123',  role: 'ceo'         },
-  { email: 'sales1@gutmann.com',     password: 'Sales@123',  role: 'salesperson' },
-  { email: 'sales2@gutmann.com',     password: 'Sales@123',  role: 'salesperson' },
+  { email: 'sales@gutmann.com',      password: 'Sales@123',  role: 'salesperson' },
   { email: 'qc@gutmann.com',         password: 'QC@1234',    role: 'qc'          },
   { email: 'technical@gutmann.com',  password: 'Tech@123',   role: 'technical'   },
   { email: 'estimation@gutmann.com', password: 'Est@1234',   role: 'estimation'  },
   { email: 'client1@example.com',    password: 'Client@12',  role: 'client'      },
-  { email: 'client2@example.com',    password: 'Client@12',  role: 'client'      },
 ];
 
 async function hashSingle(plain) {

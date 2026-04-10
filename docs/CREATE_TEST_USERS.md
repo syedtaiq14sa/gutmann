@@ -85,13 +85,11 @@ Copy the entire file content and paste it into **Supabase → SQL Editor → New
 | Email | Plain password | Role |
 |---|---|---|
 | `ceo@gutmann.com` | `Admin@123` | ceo |
-| `sales1@gutmann.com` | `Sales@123` | salesperson |
-| `sales2@gutmann.com` | `Sales@123` | salesperson |
+| `sales@gutmann.com` | `Sales@123` | salesperson |
 | `qc@gutmann.com` | `QC@1234` | qc |
 | `technical@gutmann.com` | `Tech@123` | technical |
 | `estimation@gutmann.com` | `Est@1234` | estimation |
 | `client1@example.com` | `Client@12` | client |
-| `client2@example.com` | `Client@12` | client |
 
 > **Security note:** Change these passwords before using the system with real data.
 

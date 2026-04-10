@@ -79,7 +79,7 @@ npm start
 | Role | Email | Password |
 |------|-------|----------|
 | CEO | ceo@gutmann.com | Test@1234 |
-| Salesperson | sales1@gutmann.com | Test@1234 |
+| Salesperson | sales@gutmann.com | Test@1234 |
 | QC | qc@gutmann.com | Test@1234 |
 | Technical | technical@gutmann.com | Test@1234 |
 | Estimation | estimation@gutmann.com | Test@1234 |
