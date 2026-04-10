@@ -15,6 +15,16 @@ function SalesPersonDashboard() {
     dispatch(fetchDashboardData());
   }, [dispatch]);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setShowInquiryForm(false);
+    };
+    if (showInquiryForm) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showInquiryForm]);
+
   const handleInquirySuccess = () => {
     setShowInquiryForm(false);
     dispatch(fetchDashboardData());
