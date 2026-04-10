@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import api from '../services/api';
+import QCReviewForm from '../components/Forms/QCReviewForm';
 
 function ProjectDetails() {
   const { id } = useParams();
@@ -11,6 +12,17 @@ function ProjectDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sendingToQC, setSendingToQC] = useState(false);
+  const [showQCReviewForm, setShowQCReviewForm] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setShowQCReviewForm(false);
+    };
+    if (showQCReviewForm) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showQCReviewForm]);
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -59,6 +71,15 @@ function ProjectDetails() {
             {sendingToQC ? 'Sending...' : 'Send to QC'}
           </button>
         )}
+        {user?.role === 'qc' && project.status === 'qc_review' && (
+          <button
+            onClick={() => setShowQCReviewForm(true)}
+            className="btn-primary"
+            style={{ marginLeft: '16px' }}
+          >
+            Review / Approve
+          </button>
+        )}
       </div>
 
       <div className="details-grid">
@@ -90,6 +111,26 @@ function ProjectDetails() {
           </div>
         )}
       </div>
+      {showQCReviewForm && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="qc-review-title">
+          <div className="modal-content">
+            <QCReviewForm
+              inquiry={project}
+              titleId="qc-review-title"
+              onSuccess={async () => {
+                setShowQCReviewForm(false);
+                try {
+                  const response = await api.get(`/projects/${id}`);
+                  setProject(response.data);
+                } catch (err) {
+                  setError('Review submitted, but failed to refresh project data.');
+                }
+              }}
+              onCancel={() => setShowQCReviewForm(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

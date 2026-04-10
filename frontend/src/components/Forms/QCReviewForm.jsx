@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import api from '../../services/api';
 
-function QCReviewForm({ inquiry, onSuccess, onCancel }) {
+function QCReviewForm({ inquiry, titleId, onSuccess, onCancel }) {
   const [formData, setFormData] = useState({
     decision: '',
     remarks: '',
@@ -51,7 +51,7 @@ function QCReviewForm({ inquiry, onSuccess, onCancel }) {
 
   return (
     <form className="gutmann-form" onSubmit={handleSubmit}>
-      <h2>QC Review — {inquiry?.inquiry_number}</h2>
+      <h2 id={titleId}>QC Review — {inquiry?.inquiry_number}</h2>
       {error && <div className="form-error">{error}</div>}
 
       <div className="form-section">
