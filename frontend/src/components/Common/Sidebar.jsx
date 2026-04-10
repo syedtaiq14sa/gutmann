@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 
-function Sidebar({ userRole }) {
+function Sidebar({ userRole, isOpen, onClose }) {
   const getMenuItems = () => {
     const base = [
       { path: '/dashboard', label: '📊 Dashboard', roles: ['ceo', 'salesperson', 'qc', 'technical', 'estimation'] },
@@ -12,13 +12,14 @@ function Sidebar({ userRole }) {
   };
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${isOpen ? ' sidebar-open' : ''}`}>
       <nav className="sidebar-nav">
         {getMenuItems().map(item => (
           <NavLink
             key={item.path}
             to={item.path}
             className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            onClick={onClose}
           >
             {item.label}
           </NavLink>

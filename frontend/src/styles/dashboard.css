@@ -253,3 +253,55 @@
   display: flex;
   gap: 8px;
 }
+
+/* ── Mobile (≤ 768px) ── */
+@media (max-width: 768px) {
+  .kpi-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .kpi-value {
+    font-size: 24px;
+  }
+
+  .reports-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stage-tracker {
+    padding: 16px;
+    overflow-x: auto;
+  }
+
+  .workflow-stages {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .projects-table-section,
+  .task-section {
+    overflow-x: auto;
+    padding: 16px;
+  }
+
+  .ceo-dashboard h1,
+  .salesperson-dashboard h1,
+  .department-dashboard h1 {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .kpi-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .task-meta {
+    flex-direction: column;
+    gap: 4px;
+  }
+}

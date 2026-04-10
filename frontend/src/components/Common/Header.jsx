@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { logout } from '../../store/authSlice';
 
-function Header() {
+function Header({ onToggleSidebar }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user } = useSelector(state => state.auth);
@@ -16,9 +16,16 @@ function Header() {
 
   return (
     <header className="app-header">
-      <div className="header-brand">
-        <h1>GUTMANN</h1>
-        <span className="header-subtitle">Project Workflow</span>
+      <div className="header-left">
+        <button className="hamburger-btn" onClick={onToggleSidebar} aria-label="Toggle menu">
+          <span className="hamburger-icon" />
+          <span className="hamburger-icon" />
+          <span className="hamburger-icon" />
+        </button>
+        <div className="header-brand">
+          <h1>GUTMANN</h1>
+          <span className="header-subtitle">Project Workflow</span>
+        </div>
       </div>
       <div className="header-actions">
         <div className="notification-bell">
