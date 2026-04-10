@@ -100,6 +100,7 @@ Quick deploy:
 - [Setup Guide](docs/SETUP.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Deployment Guide](docs/RENDER_DEPLOYMENT.md)
+- [Test Users Setup](docs/TEST_USERS_SETUP.md)
 
 ## 🔧 Tech Stack
 

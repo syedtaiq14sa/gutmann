@@ -58,7 +58,7 @@ cd ..
 ### Step 3 — Generate hashes for the default test users
 
 ```bash
-node scripts/gen_password_hash.js
+node scripts/generate-bcrypt-hashes.js
 ```
 
 The script prints each hash **and** a ready-to-paste SQL block.
@@ -66,7 +66,7 @@ The script prints each hash **and** a ready-to-paste SQL block.
 ### Step 4 — Generate a hash for a single custom password
 
 ```bash
-node scripts/gen_password_hash.js "MySecret@99"
+node scripts/generate_bcrypt_hash.js "MySecret@99"
 ```
 
 ### Step 5 — Paste the SQL output into Supabase SQL Editor
@@ -84,14 +84,11 @@ Copy the entire file content and paste it into **Supabase → SQL Editor → New
 
 | Email | Plain password | Role |
 |---|---|---|
-| `ceo@gutmann.com` | `Admin@123` | ceo |
-| `sales1@gutmann.com` | `Sales@123` | salesperson |
-| `sales2@gutmann.com` | `Sales@123` | salesperson |
-| `qc@gutmann.com` | `QC@1234` | qc |
-| `technical@gutmann.com` | `Tech@123` | technical |
-| `estimation@gutmann.com` | `Est@1234` | estimation |
-| `client1@example.com` | `Client@12` | client |
-| `client2@example.com` | `Client@12` | client |
+| `ceo@gutmann.com` | `Admin@12345` | ceo |
+| `sales@gutmann.com` | `Sales@12345` | salesperson |
+| `qc@gutmann.com` | `Qc@12345` | qc |
+| `technical@gutmann.com` | `Tech@12345` | technical |
+| `estimation@gutmann.com` | `Est@12345` | estimation |
 
 > **Security note:** Change these passwords before using the system with real data.
 
@@ -137,7 +134,7 @@ ORDER BY role, email;
 ```bash
 curl -X POST https://YOUR-BACKEND.onrender.com/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"ceo@gutmann.com","password":"Admin@123"}'
+  -d '{"email":"ceo@gutmann.com","password":"Admin@12345"}'
 ```
 
 A successful response contains a `token` field.
@@ -149,6 +146,6 @@ A successful response contains a `token` field.
 | Error | Cause | Fix |
 |---|---|---|
 | `column "password" does not exist` | Wrong column name | Use `password_hash` (see schema above) |
-| Login returns `Invalid credentials` | Hash mismatch or plain-text in DB | Re-run `scripts/gen_password_hash.js` and re-insert |
+| Login returns `Invalid credentials` | Hash mismatch or plain-text in DB | Re-run `scripts/generate-bcrypt-hashes.js` and re-insert |
 | `bcryptjs not found` | `npm install` not run | Run `cd backend && npm install` |
 | `relation "users" does not exist` | Schema not applied | Run `database/migrations/001_initial_schema.sql` first |

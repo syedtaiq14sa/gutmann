@@ -2,12 +2,13 @@ require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const { supabaseAdmin } = require('./src/config/supabase');
 
+// Canonical test users — must stay in sync with database/seeds/test_users.sql
 const seedUsers = [
-  { email: 'ceo@gutmann.com', password: 'Admin@123', name: 'CEO User', role: 'ceo' },
-  { email: 'sales@gutmann.com', password: 'Sales@123', name: 'Sales Person', role: 'salesperson' },
-  { email: 'qc@gutmann.com', password: 'QC@1234', name: 'QC Reviewer', role: 'qc' },
-  { email: 'tech@gutmann.com', password: 'Tech@123', name: 'Technical Reviewer', role: 'technical' },
-  { email: 'estimator@gutmann.com', password: 'Est@1234', name: 'Estimator', role: 'estimation' }
+  { email: 'ceo@gutmann.com',        password: 'Admin@12345', name: 'Ahmad Al-Rashid', role: 'ceo'         },
+  { email: 'sales@gutmann.com',       password: 'Sales@12345', name: 'Sara Malik',      role: 'salesperson' },
+  { email: 'qc@gutmann.com',          password: 'Qc@12345',    name: 'Fatima Zahra',    role: 'qc'          },
+  { email: 'technical@gutmann.com',   password: 'Tech@12345',  name: 'Khalid Ibrahim',  role: 'technical'   },
+  { email: 'estimation@gutmann.com',  password: 'Est@12345',   name: 'Nadia Hassan',    role: 'estimation'  },
 ];
 
 async function seed() {

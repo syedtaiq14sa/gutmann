@@ -120,4 +120,4 @@ See [`scripts/check_users.sh`](../scripts/check_users.sh) for the full script.
 ## See also
 
 - [Database Schema Reference](DATABASE_SCHEMA.md) — full table definitions
-- [AUTH_TEST_USERS.md](AUTH_TEST_USERS.md) — how to create / reset test users
+- [TEST_USERS_SETUP.md](TEST_USERS_SETUP.md) — how to create / reset test users
