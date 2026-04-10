@@ -1,26 +1,46 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { fetchDashboardData } from '../../store/projectSlice';
+import InquiryForm from '../Forms/InquiryForm';
 import '../../styles/dashboard.css';
 
 function SalesPersonDashboard() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { projects, loading } = useSelector(state => state.projects);
-  const { user } = useSelector(state => state.auth);
+  const [showInquiryForm, setShowInquiryForm] = useState(false);
 
   useEffect(() => {
     dispatch(fetchDashboardData());
   }, [dispatch]);
 
-  const myProjects = projects.filter(p => p.created_by === user?.id);
+  const handleInquirySuccess = () => {
+    setShowInquiryForm(false);
+    dispatch(fetchDashboardData());
+  };
 
   if (loading) return <div className="loading-spinner">Loading...</div>;
 
   return (
     <div className="salesperson-dashboard">
-      <h1>Sales Dashboard</h1>
+      <div className="dashboard-header">
+        <h1>Sales Dashboard</h1>
+        <button className="btn-primary" onClick={() => setShowInquiryForm(true)}>
+          + Add New Inquiry
+        </button>
+      </div>
+
+      {showInquiryForm && (
+        <div className="modal-overlay" onClick={() => setShowInquiryForm(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <InquiryForm
+              onSuccess={handleInquirySuccess}
+              onCancel={() => setShowInquiryForm(false)}
+            />
+          </div>
+        </div>
+      )}
       <div className="kpi-cards">
         <div className="kpi-card">
           <h3>My Projects</h3>
