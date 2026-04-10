@@ -152,7 +152,7 @@ curl -X POST https://gutmann-backend.onrender.com/api/inquiries \
 | Inquiries | Sidebar → Inquiries | List renders, "New Inquiry" button visible |
 | New Inquiry form | Click "New Inquiry" | Form fields render, submit creates a record |
 | QC Review | Login as `qc@gutmann.com` / `QC@12345` | Pending inquiries visible |
-| Technical Review | Login as `tech@gutmann.com` / `Tech@123` | Pending inquiries visible |
+| Technical Review | Login as `technical@gutmann.com` / `Tech@123` | Pending inquiries visible |
 | Estimation | Login as `estimation@gutmann.com` / `Est@1234` | Quotation form renders |
 | Client Portal | Login as `client@gutmann.com` / `Client@12` | Only client-relevant inquiries visible |
 | Notifications | Any role | Bell icon in header shows count |
