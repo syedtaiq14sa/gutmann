@@ -36,13 +36,16 @@ This guide walks you through creating and configuring a Supabase project for the
 
 ## Step 3: Run the Database Schema
 
-1. In the left sidebar click **SQL Editor → New query**.
-2. Open `database/migrations/001_initial_schema.sql` from this repository.
-3. Paste the entire file content into the query editor.
-4. Click **Run ▶** (or press `Ctrl+Enter` / `Cmd+Enter`).
-5. You should see **"Success. No rows returned"** – this means all tables were created successfully.
+Run migrations in order using **SQL Editor → New query** for each file:
 
-The migration creates the following tables:
+### Migration 001 – Initial schema
+
+1. Open `database/migrations/001_initial_schema.sql` from this repository.
+2. Paste the entire file content into the query editor.
+3. Click **Run ▶** (or press `Ctrl+Enter` / `Cmd+Enter`).
+4. You should see **"Success. No rows returned"** – this means all tables were created successfully.
+
+Migration 001 creates the following tables:
 - `users`
 - `inquiries`
 - `qc_reviews`
@@ -53,6 +56,14 @@ The migration creates the following tables:
 - `notifications`
 - `audit_log`
 - `comments`
+
+### Migration 002 – Add missing inquiry columns
+
+1. Open a new SQL Editor tab.
+2. Open `database/migrations/002_add_budget_range_to_inquiries.sql` from this repository.
+3. Paste the content and click **Run ▶**.
+
+This migration adds the `client_email`, `client_phone`, `client_company`, `project_type`, and `budget_range` columns to the `inquiries` table (required by the backend API and seed data). It is safe to run multiple times (`ADD COLUMN IF NOT EXISTS`).
 
 ---
 
