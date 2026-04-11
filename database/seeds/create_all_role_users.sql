@@ -11,6 +11,7 @@
 --   technical@gutmann.com    Tech@123    (Technical)
 --   estimation@gutmann.com   Est@1234    (Estimation)
 --   client@gutmann.com       Client@12   (Client)
+--   supply@gutmann.com       Supply@12   (Supply Chain)
 --
 -- Regenerate hashes any time with:
 --   node scripts/gen_password_hash.js
@@ -129,6 +130,24 @@ WHERE NOT EXISTS (
     SELECT 1 FROM public.users WHERE email = 'client@gutmann.com'
 );
 
+-- -------------------------------------------------------
+-- 7. Supply Chain
+-- -------------------------------------------------------
+INSERT INTO public.users
+    (id, email, password_hash, name, role, is_active, created_at, updated_at)
+SELECT
+    gen_random_uuid(),
+    'supply@gutmann.com',
+    '$2a$12$eiuC4wS5V7fYQec.GnAZ/.K7O1xDBe9DuuUmsG3fXFNTYfK85onbW',
+    'Supply Chain User',
+    'supply_chain',
+    true,
+    NOW(),
+    NOW()
+WHERE NOT EXISTS (
+    SELECT 1 FROM public.users WHERE email = 'supply@gutmann.com'
+);
+
 -- =====================================================
 -- Verify all role users were inserted
 -- =====================================================
@@ -139,7 +158,7 @@ SELECT
     is_active,
     to_char(created_at, 'YYYY-MM-DD HH24:MI') AS created_at
 FROM public.users
-WHERE role IN ('ceo', 'salesperson', 'qc', 'technical', 'estimation', 'client')
+WHERE role IN ('ceo', 'salesperson', 'qc', 'technical', 'estimation', 'client', 'supply_chain')
 ORDER BY
     CASE role
         WHEN 'ceo'         THEN 1
@@ -148,4 +167,5 @@ ORDER BY
         WHEN 'technical'   THEN 4
         WHEN 'estimation'  THEN 5
         WHEN 'client'      THEN 6
+        WHEN 'supply_chain' THEN 7
     END;

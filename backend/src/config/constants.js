@@ -9,6 +9,7 @@ const WORKFLOW_STAGES = [
   'ceo_approval',
   'client_review',
   'approved',
+  'supply_chain',
   'rejected'
 ];
 
@@ -47,7 +48,8 @@ const ROLES = {
   QC: 'qc',
   TECHNICAL: 'technical',
   ESTIMATION: 'estimation',
-  CLIENT: 'client'
+  CLIENT: 'client',
+  SUPPLY_CHAIN: 'supply_chain'
 };
 
 // Project status labels for display
@@ -61,6 +63,7 @@ const STATUS_LABELS = {
   ceo_approval: 'CEO Approval',
   client_review: 'Client Review',
   approved: 'Approved',
+  supply_chain: 'Supply Chain',
   rejected: 'Rejected'
 };
 

@@ -16,6 +16,8 @@ const getProjects = async (req, res) => {
       query = query.in('status', ['technical_review', 'technical_revision']);
     } else if (req.user.role === 'estimation') {
       query = query.eq('status', 'estimation');
+    } else if (req.user.role === 'supply_chain') {
+      query = query.eq('status', 'supply_chain');
     }
 
     const { data, error } = await query;
@@ -36,6 +38,7 @@ const getTasks = async (req, res) => {
       case 'technical': statusFilter = ['technical_review', 'technical_revision']; break;
       case 'estimation': statusFilter = ['estimation']; break;
       case 'ceo': statusFilter = ['ceo_approval']; break;
+      case 'supply_chain': statusFilter = ['supply_chain']; break;
       default: statusFilter = null;
     }
 
@@ -87,6 +90,7 @@ const getReports = async (req, res) => {
       { stage: 'Technical', count: projects.filter(p => p.status === 'technical_review').length },
       { stage: 'Estimation', count: projects.filter(p => p.status === 'estimation').length },
       { stage: 'CEO', count: projects.filter(p => p.status === 'ceo_approval').length },
+      { stage: 'Supply Chain', count: projects.filter(p => p.status === 'supply_chain').length },
       { stage: 'Approved', count: projects.filter(p => p.status === 'approved').length }
     ];
 

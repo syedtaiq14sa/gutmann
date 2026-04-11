@@ -19,6 +19,7 @@ function DepartmentDashboard() {
       case 'qc': return 'qc_review';
       case 'technical': return 'technical_review';
       case 'estimation': return 'estimation';
+      case 'supply_chain': return 'supply_chain';
       default: return null;
     }
   };

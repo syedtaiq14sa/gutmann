@@ -16,7 +16,7 @@ gutmann/
 ## 🔄 Project Workflow
 
 ```
-Inquiry → QC Review → Technical Review → Estimation → CEO Approval → Client Review → Approved/Rejected
+Inquiry → QC Review → Technical Review → Estimation → CEO Approval → Client Review → Approved → Supply Chain
 ```
 
 ## 👥 User Roles
@@ -28,6 +28,7 @@ Inquiry → QC Review → Technical Review → Estimation → CEO Approval → C
 | **QC** | Quality control reviews |
 | **Technical** | Technical feasibility reviews |
 | **Estimation** | Cost estimation & quotations |
+| **Supply Chain** | Post-approval processing and execution |
 | **Client** | View own project status |
 
 ## 🚀 Quick Start

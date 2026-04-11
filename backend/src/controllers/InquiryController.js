@@ -84,6 +84,8 @@ const getAllInquiries = async (req, res) => {
       query = query.in('status', ['technical_review', 'technical_revision']);
     } else if (req.user.role === 'estimation') {
       query = query.eq('status', 'estimation');
+    } else if (req.user.role === 'supply_chain') {
+      query = query.eq('status', 'supply_chain');
     }
 
     if (status) {

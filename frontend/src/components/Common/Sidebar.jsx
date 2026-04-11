@@ -4,8 +4,8 @@ import { NavLink } from 'react-router-dom';
 function Sidebar({ userRole, isOpen, onClose }) {
   const getMenuItems = () => {
     const base = [
-      { path: '/dashboard', label: '📊 Dashboard', roles: ['ceo', 'salesperson', 'qc', 'technical', 'estimation'] },
-      { path: '/tasks', label: '📋 Task Queue', roles: ['qc', 'technical', 'estimation', 'salesperson'] },
+      { path: '/dashboard', label: '📊 Dashboard', roles: ['ceo', 'salesperson', 'qc', 'technical', 'estimation', 'supply_chain'] },
+      { path: '/tasks', label: '📋 Task Queue', roles: ['qc', 'technical', 'estimation', 'salesperson', 'supply_chain'] },
       { path: '/reports', label: '📈 Reports', roles: ['ceo', 'salesperson'] },
     ];
     return base.filter(item => item.roles.includes(userRole));

@@ -147,6 +147,7 @@ code {
 .status-ceo_approval { background: #fce4ec; color: #880e4f; }
 .status-client_review { background: #e0f2f1; color: #00695c; }
 .status-approved { background: #e8f5e9; color: #1b5e20; }
+.status-supply_chain { background: #e8eaf6; color: #283593; }
 .status-rejected { background: #ffebee; color: #b71c1c; }
 
 .data-table {
