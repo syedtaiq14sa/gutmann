@@ -4,6 +4,66 @@ import { useSelector } from 'react-redux';
 import api from '../services/api';
 import QCReviewForm from '../components/Forms/QCReviewForm';
 
+const STAGE_REQUIREMENTS = {
+  technical_review: {
+    checklist: [
+      { key: 'requirements_reviewed', label: 'Technical requirements reviewed' },
+      { key: 'feasibility_checked', label: 'Feasibility assessment completed' },
+      { key: 'risk_assessed', label: 'Implementation risks assessed' }
+    ],
+    requireFeedback: true
+  },
+  estimation: {
+    checklist: [
+      { key: 'costing_completed', label: 'Costing sheet completed' },
+      { key: 'quotation_reviewed', label: 'Quotation reviewed internally' },
+      { key: 'profitability_verified', label: 'Pricing and margin verified' }
+    ],
+    requireFeedback: true,
+    requirePricing: true
+  },
+  ceo_approval: {
+    checklist: [
+      { key: 'submission_reviewed', label: 'Submission reviewed' },
+      { key: 'commercial_terms_reviewed', label: 'Commercial terms reviewed' }
+    ],
+    requireFeedback: true
+  },
+  client_review: {
+    checklist: [
+      { key: 'client_response_recorded', label: 'Client response recorded' }
+    ],
+    requireFeedback: true,
+    requireClientResponse: true
+  }
+};
+
+const createStageInputState = (status) => {
+  const requirements = STAGE_REQUIREMENTS[status];
+  if (!requirements) {
+    return {
+      checklist: {},
+      feedback: '',
+      estimated_cost: '',
+      final_price: '',
+      client_response: ''
+    };
+  }
+
+  const checklist = requirements.checklist.reduce((acc, item) => {
+    acc[item.key] = false;
+    return acc;
+  }, {});
+
+  return {
+    checklist,
+    feedback: '',
+    estimated_cost: '',
+    final_price: '',
+    client_response: ''
+  };
+};
+
 function ProjectDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -14,6 +74,7 @@ function ProjectDetails() {
   const [sendingToQC, setSendingToQC] = useState(false);
   const [movingNext, setMovingNext] = useState(false);
   const [showQCReviewForm, setShowQCReviewForm] = useState(false);
+  const [stageInput, setStageInput] = useState(createStageInputState());
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -38,6 +99,10 @@ function ProjectDetails() {
     };
     fetchProject();
   }, [id]);
+
+  useEffect(() => {
+    setStageInput(createStageInputState(project?.status));
+  }, [project?.status]);
 
   const handleSendToQC = async () => {
     setSendingToQC(true);
@@ -75,7 +140,14 @@ function ProjectDetails() {
     setMovingNext(true);
     setError('');
     try {
-      await api.put(`/inquiries/${id}/stage`, { new_status: action.nextStatus });
+      await api.put(`/inquiries/${id}/stage`, {
+        new_status: action.nextStatus,
+        checklist: stageInput.checklist,
+        feedback: stageInput.feedback,
+        estimated_cost: stageInput.estimated_cost ? parseFloat(stageInput.estimated_cost) : null,
+        final_price: stageInput.final_price ? parseFloat(stageInput.final_price) : null,
+        client_response: stageInput.client_response
+      });
       const response = await api.get(`/projects/${id}`);
       setProject(response.data);
     } catch (err) {
@@ -86,6 +158,19 @@ function ProjectDetails() {
   };
 
   const nextAction = getNextAction();
+  const stageRequirements = STAGE_REQUIREMENTS[project?.status];
+  const checkedAllChecklist = !stageRequirements || stageRequirements.checklist.every(item => stageInput.checklist[item.key]);
+  const hasFeedback = !stageRequirements?.requireFeedback || stageInput.feedback.trim().length > 0;
+  const estimatedCost = Number(stageInput.estimated_cost);
+  const finalPrice = Number(stageInput.final_price);
+  const hasValidPricing = !stageRequirements?.requirePricing || (
+    Number.isFinite(estimatedCost) &&
+    estimatedCost > 0 &&
+    Number.isFinite(finalPrice) &&
+    finalPrice > 0
+  );
+  const hasClientResponse = !stageRequirements?.requireClientResponse || stageInput.client_response.trim().length > 0;
+  const isNextReady = checkedAllChecklist && hasFeedback && hasValidPricing && hasClientResponse;
 
   if (loading) return <div className="loading-spinner">Loading project...</div>;
   if (error) return <div className="error-message">{error}</div>;
@@ -120,13 +205,90 @@ function ProjectDetails() {
           <button
             onClick={handleNext}
             className="btn-primary"
-            disabled={movingNext}
+            disabled={movingNext || !isNextReady}
             style={{ marginLeft: '16px' }}
           >
             {movingNext ? 'Moving...' : 'Next'}
           </button>
         )}
       </div>
+
+      {nextAction && stageRequirements && (
+        <div className="detail-card" style={{ marginBottom: '16px' }}>
+          <h3>Mandatory Completion Before Next Stage</h3>
+
+          <div className="form-group">
+            <label>Essential Checklist *</label>
+            <div style={{ display: 'grid', gap: '8px' }}>
+              {stageRequirements.checklist.map((item) => (
+                <label key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={!!stageInput.checklist[item.key]}
+                    onChange={(e) => setStageInput(prev => ({
+                      ...prev,
+                      checklist: { ...prev.checklist, [item.key]: e.target.checked }
+                    }))}
+                  />
+                  <span>{item.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {stageRequirements.requirePricing && (
+            <div className="form-row">
+              <div className="form-group">
+                <label>Estimated Cost *</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={stageInput.estimated_cost}
+                  onChange={(e) => setStageInput(prev => ({ ...prev, estimated_cost: e.target.value }))}
+                  placeholder="Enter estimated cost"
+                />
+              </div>
+              <div className="form-group">
+                <label>Final Price *</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={stageInput.final_price}
+                  onChange={(e) => setStageInput(prev => ({ ...prev, final_price: e.target.value }))}
+                  placeholder="Enter final price"
+                />
+              </div>
+            </div>
+          )}
+
+          {stageRequirements.requireClientResponse && (
+            <div className="form-group">
+              <label>Client Response *</label>
+              <select
+                value={stageInput.client_response}
+                onChange={(e) => setStageInput(prev => ({ ...prev, client_response: e.target.value }))}
+              >
+                <option value="">Select response</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="conditional_approval">Conditional approval</option>
+              </select>
+            </div>
+          )}
+
+          <div className="form-group">
+            <label>Feedback / Comments *</label>
+            <textarea
+              rows={3}
+              value={stageInput.feedback}
+              onChange={(e) => setStageInput(prev => ({ ...prev, feedback: e.target.value }))}
+              placeholder="Provide required stage feedback/comments"
+            />
+          </div>
+        </div>
+      )}
 
       <div className="details-grid">
         <div className="detail-card">

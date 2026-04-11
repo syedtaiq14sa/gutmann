@@ -3,6 +3,66 @@ const WorkflowEngine = require('../services/WorkflowEngine');
 const NotificationService = require('../services/NotificationService');
 const { generateInquiryNumber, isBottleneck } = require('../utils/helpers');
 
+const STAGE_ADVANCE_REQUIREMENTS = {
+  technical_review: {
+    next_status: 'estimation',
+    checklist: ['requirements_reviewed', 'feasibility_checked', 'risk_assessed'],
+    requireFeedback: true
+  },
+  estimation: {
+    next_status: 'ceo_approval',
+    checklist: ['costing_completed', 'quotation_reviewed', 'profitability_verified'],
+    requireFeedback: true,
+    requirePricing: true
+  },
+  ceo_approval: {
+    next_status: 'client_review',
+    checklist: ['submission_reviewed', 'commercial_terms_reviewed'],
+    requireFeedback: true
+  },
+  client_review: {
+    next_status: 'approved',
+    checklist: ['client_response_recorded'],
+    requireFeedback: true,
+    requireClientResponse: true
+  }
+};
+
+const validateAdvanceRequirements = (currentStatus, newStatus, payload = {}) => {
+  const requirement = STAGE_ADVANCE_REQUIREMENTS[currentStatus];
+  if (!requirement || requirement.next_status !== newStatus) {
+    return null;
+  }
+
+  const checklist = payload.checklist || {};
+  const missingChecklist = requirement.checklist.filter((key) => !checklist[key]);
+  if (missingChecklist.length > 0) {
+    return `Missing required checklist items: ${missingChecklist.join(', ')}`;
+  }
+
+  const feedback = (payload.feedback || '').trim();
+  if (requirement.requireFeedback && !feedback) {
+    return 'Feedback/comments are required before moving to the next stage';
+  }
+
+  if (requirement.requirePricing) {
+    const estimatedCost = Number(payload.estimated_cost);
+    const finalPrice = Number(payload.final_price);
+    if (!Number.isFinite(estimatedCost) || estimatedCost <= 0 || !Number.isFinite(finalPrice) || finalPrice <= 0) {
+      return 'Valid estimated_cost and final_price are required before moving to the next stage';
+    }
+  }
+
+  if (requirement.requireClientResponse) {
+    const clientResponse = (payload.client_response || '').trim();
+    if (!clientResponse) {
+      return 'Client response is required before moving to the next stage';
+    }
+  }
+
+  return null;
+};
+
 // POST /api/inquiries - Create new inquiry
 const createInquiry = async (req, res) => {
   try {
@@ -207,6 +267,11 @@ const moveToStage = async (req, res) => {
       });
     }
 
+    const requirementError = validateAdvanceRequirements(inquiry.status, new_status, req.body);
+    if (requirementError) {
+      return res.status(400).json({ error: requirementError });
+    }
+
     const { data, error } = await supabaseAdmin
       .from('inquiries')
       .update({ status: new_status, updated_at: new Date().toISOString() })
@@ -221,7 +286,16 @@ const moveToStage = async (req, res) => {
       entity_type: 'inquiry',
       entity_id: id,
       performed_by: req.user.id,
-      details: { from: inquiry.status, to: new_status, notes }
+      details: {
+        from: inquiry.status,
+        to: new_status,
+        notes,
+        checklist: req.body.checklist || null,
+        feedback: req.body.feedback || null,
+        estimated_cost: req.body.estimated_cost ?? null,
+        final_price: req.body.final_price ?? null,
+        client_response: req.body.client_response || null
+      }
     }]);
 
     if (req.io) {
