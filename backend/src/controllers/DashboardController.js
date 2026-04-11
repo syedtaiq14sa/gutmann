@@ -90,8 +90,8 @@ const getReports = async (req, res) => {
       { stage: 'Technical', count: projects.filter(p => p.status === 'technical_review').length },
       { stage: 'Estimation', count: projects.filter(p => p.status === 'estimation').length },
       { stage: 'CEO', count: projects.filter(p => p.status === 'ceo_approval').length },
-      { stage: 'Supply Chain', count: projects.filter(p => p.status === 'supply_chain').length },
-      { stage: 'Approved', count: projects.filter(p => p.status === 'approved').length }
+      { stage: 'Approved', count: projects.filter(p => p.status === 'approved').length },
+      { stage: 'Supply Chain', count: projects.filter(p => p.status === 'supply_chain').length }
     ];
 
     const statusBreakdown = stageDistribution.map(s => ({ name: s.stage, value: s.count }));
