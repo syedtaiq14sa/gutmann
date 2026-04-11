@@ -1,4 +1,34 @@
 const { supabaseAdmin } = require('../config/supabase');
+const STAGE_ORDER = [
+  'received',
+  'qc_review',
+  'qc_revision',
+  'technical_review',
+  'technical_revision',
+  'estimation',
+  'ceo_approval',
+  'client_review',
+  'approved',
+  'supply_chain',
+  'rejected'
+];
+
+const ROLE_STAGE_RANK = {
+  qc: STAGE_ORDER.indexOf('qc_review'),
+  technical: STAGE_ORDER.indexOf('technical_review'),
+  estimation: STAGE_ORDER.indexOf('estimation')
+};
+
+const getVisibilityGroup = (role, status) => {
+  if (ROLE_STAGE_RANK[role] === undefined) return 'active';
+  const statusRank = STAGE_ORDER.indexOf(status);
+  const roleRank = ROLE_STAGE_RANK[role];
+
+  if (statusRank === -1) return 'active';
+  if (statusRank === roleRank || statusRank === roleRank + 1) return 'active';
+  if (statusRank > roleRank + 1) return 'completed';
+  return 'returned';
+};
 
 const getProjects = async (req, res) => {
   try {
@@ -11,11 +41,11 @@ const getProjects = async (req, res) => {
     if (req.user.role === 'salesperson') {
       query = query.eq('created_by', req.user.id);
     } else if (req.user.role === 'qc') {
-      query = query.in('status', ['qc_review', 'qc_revision', 'received']);
+      query = query.in('status', ['received', 'qc_review', 'qc_revision', 'technical_review', 'technical_revision', 'estimation', 'ceo_approval', 'client_review', 'approved', 'supply_chain', 'rejected']);
     } else if (req.user.role === 'technical') {
-      query = query.in('status', ['technical_review', 'technical_revision']);
+      query = query.in('status', ['technical_review', 'technical_revision', 'estimation', 'ceo_approval', 'client_review', 'approved', 'supply_chain', 'rejected']);
     } else if (req.user.role === 'estimation') {
-      query = query.eq('status', 'estimation');
+      query = query.in('status', ['estimation', 'ceo_approval', 'client_review', 'approved', 'supply_chain', 'rejected']);
     } else if (req.user.role === 'supply_chain') {
       query = query.eq('status', 'supply_chain');
     }
@@ -34,9 +64,9 @@ const getTasks = async (req, res) => {
   try {
     let statusFilter;
     switch (req.user.role) {
-      case 'qc': statusFilter = ['qc_review', 'qc_revision']; break;
-      case 'technical': statusFilter = ['technical_review', 'technical_revision']; break;
-      case 'estimation': statusFilter = ['estimation']; break;
+      case 'qc': statusFilter = ['received', 'qc_review', 'qc_revision', 'technical_review', 'technical_revision', 'estimation', 'ceo_approval', 'client_review', 'approved', 'supply_chain', 'rejected']; break;
+      case 'technical': statusFilter = ['technical_review', 'technical_revision', 'estimation', 'ceo_approval', 'client_review', 'approved', 'supply_chain', 'rejected']; break;
+      case 'estimation': statusFilter = ['estimation', 'ceo_approval', 'client_review', 'approved', 'supply_chain', 'rejected']; break;
       case 'ceo': statusFilter = ['ceo_approval']; break;
       case 'supply_chain': statusFilter = ['supply_chain']; break;
       default: statusFilter = null;
@@ -64,7 +94,8 @@ const getTasks = async (req, res) => {
       title: item.inquiry_number,
       project_id: item.id,
       stage: item.status,
-      priority: item.bottleneck_flag ? 'high' : 'medium'
+      priority: item.bottleneck_flag ? 'high' : 'medium',
+      visibility_group: getVisibilityGroup(req.user.role, item.status)
     }));
 
     res.json(tasks);

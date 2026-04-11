@@ -1,5 +1,6 @@
 const { supabaseAdmin } = require('../config/supabase');
 const NotificationService = require('../services/NotificationService');
+const { transitionStage } = require('../services/StageTransitionService');
 
 // GET /api/client/quotations - Get client's quotations
 const getMyQuotations = async (req, res) => {
@@ -38,14 +39,15 @@ const acceptQuotation = async (req, res) => {
       return res.status(400).json({ error: 'Inquiry is not in client review stage' });
     }
 
-    const { data, error } = await supabaseAdmin
-      .from('inquiries')
-      .update({ status: 'approved', updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
+    const data = await transitionStage({
+      inquiryId: id,
+      fromStatus: inquiry.status,
+      toStatus: 'approved',
+      transitionedBy: req.user.id,
+      notes,
+      fromStartedAtFallback: inquiry.updated_at || inquiry.created_at,
+      details: { client_response: 'approved', feedback: notes }
+    });
 
     await supabaseAdmin.from('audit_log').insert([{
       action: 'client_accepted',
@@ -92,14 +94,15 @@ const rejectQuotation = async (req, res) => {
       return res.status(400).json({ error: 'Inquiry is not in client review stage' });
     }
 
-    const { data, error } = await supabaseAdmin
-      .from('inquiries')
-      .update({ status: 'rejected', updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
+    const data = await transitionStage({
+      inquiryId: id,
+      fromStatus: inquiry.status,
+      toStatus: 'rejected',
+      transitionedBy: req.user.id,
+      notes: reason,
+      fromStartedAtFallback: inquiry.updated_at || inquiry.created_at,
+      details: { client_response: 'rejected', feedback: reason }
+    });
 
     await supabaseAdmin.from('audit_log').insert([{
       action: 'client_rejected',

@@ -8,7 +8,7 @@ function TaskQueue() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('active');
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -26,7 +26,7 @@ function TaskQueue() {
 
   const filteredTasks = tasks.filter(task => {
     if (filter === 'all') return true;
-    return task.priority === filter;
+    return (task.visibility_group || 'active') === filter;
   });
 
   if (loading) return <div className="loading-spinner">Loading tasks...</div>;
@@ -36,7 +36,7 @@ function TaskQueue() {
       <div className="page-header">
         <h1>Task Queue</h1>
         <div className="filter-buttons">
-          {['all', 'high', 'medium', 'low'].map(f => (
+          {['active', 'completed', 'returned', 'all'].map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -64,6 +64,7 @@ function TaskQueue() {
               </div>
               <div className="task-meta">
                 <span>Stage: {task.stage?.replace('_', ' ')}</span>
+                <span>View: {(task.visibility_group || 'active').replace('_', ' ')}</span>
                 <span>Due: {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No deadline'}</span>
               </div>
               {task.bottleneck_flag && (
