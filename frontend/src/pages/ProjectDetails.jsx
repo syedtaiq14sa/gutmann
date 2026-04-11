@@ -136,6 +136,8 @@ function ProjectDetails() {
   const handleNext = async () => {
     const action = getNextAction();
     if (!action) return;
+    const estimatedCostValue = stageInput.estimated_cost === '' ? null : Number(stageInput.estimated_cost);
+    const finalPriceValue = stageInput.final_price === '' ? null : Number(stageInput.final_price);
 
     setMovingNext(true);
     setError('');
@@ -144,8 +146,8 @@ function ProjectDetails() {
         new_status: action.nextStatus,
         checklist: stageInput.checklist,
         feedback: stageInput.feedback,
-        estimated_cost: stageInput.estimated_cost ? parseFloat(stageInput.estimated_cost) : null,
-        final_price: stageInput.final_price ? parseFloat(stageInput.final_price) : null,
+        estimated_cost: Number.isFinite(estimatedCostValue) ? estimatedCostValue : null,
+        final_price: Number.isFinite(finalPriceValue) ? finalPriceValue : null,
         client_response: stageInput.client_response
       });
       const response = await api.get(`/projects/${id}`);
