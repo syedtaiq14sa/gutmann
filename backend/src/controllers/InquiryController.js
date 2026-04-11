@@ -58,6 +58,9 @@ const validateAdvanceRequirements = (currentStatus, newStatus, payload = {}) => 
     if (!clientResponse) {
       return 'Client response is required before moving to the next stage';
     }
+    if (!['approved', 'rejected', 'conditional_approval'].includes(clientResponse)) {
+      return 'Invalid client response value';
+    }
   }
 
   return null;
@@ -272,6 +275,13 @@ const moveToStage = async (req, res) => {
       return res.status(400).json({ error: requirementError });
     }
 
+    const estimatedCost = req.body.estimated_cost !== undefined && req.body.estimated_cost !== null
+      ? Number(req.body.estimated_cost)
+      : null;
+    const finalPrice = req.body.final_price !== undefined && req.body.final_price !== null
+      ? Number(req.body.final_price)
+      : null;
+
     const { data, error } = await supabaseAdmin
       .from('inquiries')
       .update({ status: new_status, updated_at: new Date().toISOString() })
@@ -292,8 +302,8 @@ const moveToStage = async (req, res) => {
         notes,
         checklist: req.body.checklist || null,
         feedback: req.body.feedback || null,
-        estimated_cost: req.body.estimated_cost ?? null,
-        final_price: req.body.final_price ?? null,
+        estimated_cost: estimatedCost,
+        final_price: finalPrice,
         client_response: req.body.client_response || null
       }
     }]);
