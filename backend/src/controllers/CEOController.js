@@ -1,6 +1,6 @@
 const { supabaseAdmin } = require('../config/supabase');
 const NotificationService = require('../services/NotificationService');
-const { transitionStage } = require('../services/StageTransitionService');
+const { transitionStage, toHours } = require('../services/StageTransitionService');
 
 const getPendingApprovals = async (req, res) => {
   try {
@@ -99,7 +99,7 @@ const getAnalytics = async (req, res) => {
       if (!acc[row.stage]) acc[row.stage] = [];
       const duration = row.duration_hours ?? (
         row.completed_at && row.started_at
-          ? Math.round((new Date(row.completed_at) - new Date(row.started_at)) / (1000 * 60 * 60))
+          ? toHours(row.started_at, row.completed_at)
           : null
       );
       if (duration !== null && Number.isFinite(duration)) acc[row.stage].push(duration);
@@ -112,6 +112,7 @@ const getAnalytics = async (req, res) => {
     }));
 
     const turnaroundHours = projects
+      .filter((project) => ['approved', 'rejected', 'supply_chain'].includes(project.status))
       .map((project) => (new Date(project.updated_at) - new Date(project.created_at)) / (1000 * 60 * 60))
       .filter((value) => Number.isFinite(value) && value >= 0);
 

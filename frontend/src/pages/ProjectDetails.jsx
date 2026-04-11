@@ -36,6 +36,8 @@ const SLA_HOURS = {
   supply_chain: 72
 };
 
+const TERMINAL_STATUSES = ['approved', 'rejected', 'supply_chain'];
+
 const STAGE_REQUIREMENTS = {
   technical_review: {
     checklist: [
@@ -82,7 +84,10 @@ const createStageInputState = (status) => {
     };
   }
   return {
-    checklist: requirements.checklist.reduce((acc, item) => ({ ...acc, [item.key]: false }), {}),
+    checklist: requirements.checklist.reduce((acc, item) => {
+      acc[item.key] = false;
+      return acc;
+    }, {}),
     feedback: '',
     estimated_cost: '',
     final_price: '',
@@ -96,7 +101,11 @@ const formatDuration = (start, end) => {
   if (!start) return '—';
   const from = new Date(start).getTime();
   const to = new Date(end || Date.now()).getTime();
-  if (!Number.isFinite(from) || !Number.isFinite(to) || to < from) return '—';
+  if (!Number.isFinite(from) || !Number.isFinite(to)) return '—';
+  if (to < from) {
+    console.warn('Invalid duration range detected', { start, end });
+    return '—';
+  }
   const mins = Math.floor((to - from) / (1000 * 60));
   const days = Math.floor(mins / (60 * 24));
   const hours = Math.floor((mins % (60 * 24)) / 60);
@@ -139,19 +148,24 @@ function ProjectDetails() {
   }, [showQCReviewForm]);
 
   const fetchAll = async () => {
-    const [projectRes, historyRes] = await Promise.all([
-      api.get(`/projects/${id}`),
-      api.get(`/inquiries/${id}/history`)
-    ]);
-    setProject(projectRes.data);
-    setHistory(historyRes.data || []);
+    try {
+      const [projectRes, historyRes] = await Promise.all([
+        api.get(`/projects/${id}`),
+        api.get(`/inquiries/${id}/history`)
+      ]);
+      setProject(projectRes.data);
+      setHistory(historyRes.data || []);
+    } catch (err) {
+      throw new Error(err?.response?.data?.error || 'Failed to fetch project timeline data');
+    }
   };
 
   useEffect(() => {
     const load = async () => {
       try {
         await fetchAll();
-      } catch (_err) {
+      } catch (err) {
+        console.error('Failed to load project details:', err);
         setError('Failed to load project details');
       } finally {
         setLoading(false);
@@ -241,7 +255,7 @@ function ProjectDetails() {
 
   const currentRank = STAGE_PROGRESS_ORDER.indexOf(project?.status);
   const quotation = project?.quotation || project?.quotations?.[0];
-  const overallTurnaround = formatDuration(project?.created_at, ['approved', 'rejected', 'supply_chain'].includes(project?.status) ? project?.updated_at : null);
+  const overallTurnaroundEnd = TERMINAL_STATUSES.includes(project?.status) ? project?.updated_at : null;
 
   if (loading) return <div className="loading-spinner">Loading project...</div>;
   if (error && !project) return <div className="error-message">{error}</div>;
@@ -295,7 +309,7 @@ function ProjectDetails() {
           <p><strong>Description:</strong> {project.project_description}</p>
           <p><strong>Location:</strong> {project.location || '—'}</p>
           <p><strong>Created:</strong> {formatDateTime(project.created_at)}</p>
-          <p><strong>Overall Turnaround:</strong> {overallTurnaround}</p>
+          <p><strong>Overall Turnaround:</strong> {formatDuration(project?.created_at, overallTurnaroundEnd)}</p>
         </div>
 
         {quotation && (
@@ -340,6 +354,7 @@ function ProjectDetails() {
                   step="0.01"
                   value={stageInput.estimated_cost}
                   onChange={(e) => setStageInput(prev => ({ ...prev, estimated_cost: e.target.value }))}
+                  placeholder="Enter estimated cost"
                 />
               </div>
               <div className="form-group">
@@ -350,6 +365,7 @@ function ProjectDetails() {
                   step="0.01"
                   value={stageInput.final_price}
                   onChange={(e) => setStageInput(prev => ({ ...prev, final_price: e.target.value }))}
+                  placeholder="Enter final price"
                 />
               </div>
             </div>
@@ -430,7 +446,7 @@ function ProjectDetails() {
                 {movingNext ? 'Approving...' : 'Approve & Send to Client'}
               </button>
               <button onClick={() => moveStage('estimation')} className="btn-danger" disabled={movingNext || !hasFeedback}>
-                {movingNext ? 'Rejecting...' : 'Reject to Estimation'}
+                {movingNext ? 'Rejecting...' : 'Reject & Return to Estimation'}
               </button>
             </>
           ) : (

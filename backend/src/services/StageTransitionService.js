@@ -1,17 +1,11 @@
 const { supabaseAdmin } = require('../config/supabase');
 
-const toHours = (start, end) => {
-  const diffMs = Math.max(0, new Date(end).getTime() - new Date(start).getTime());
-  return Math.round(diffMs / (1000 * 60 * 60));
-};
+const getDiffMs = (start, end) => Math.max(0, new Date(end).getTime() - new Date(start).getTime());
+const toHours = (start, end) => Math.round(getDiffMs(start, end) / (1000 * 60 * 60));
+const toDays = (start, end) => Math.round(getDiffMs(start, end) / (1000 * 60 * 60 * 24));
 
-const toDays = (start, end) => {
-  const diffMs = Math.max(0, new Date(end).getTime() - new Date(start).getTime());
-  return Math.round(diffMs / (1000 * 60 * 60 * 24));
-};
-
-const initializeStage = async ({ inquiryId, stage = 'received', assignedTo = null, startedAt }) => {
-  const now = startedAt || new Date().toISOString();
+const initializeStage = async ({ inquiryId, stage = 'received', assignedTo = null, overrideStartedAt }) => {
+  const now = overrideStartedAt || new Date().toISOString();
   await supabaseAdmin
     .from('project_status')
     .insert([{
@@ -56,7 +50,10 @@ const finalizeStage = async ({ inquiryId, stage, completedAt, fallbackStartedAt 
       duration_hours: toHours(fallbackStartedAt, completedAt),
       bottleneck_days: toDays(fallbackStartedAt, completedAt)
     }]);
+    return;
   }
+
+  console.warn(`[StageTransitionService] No open stage row found for inquiry ${inquiryId} stage ${stage}`);
 };
 
 const transitionStage = async ({
@@ -77,7 +74,7 @@ const transitionStage = async ({
     fallbackStartedAt: fromStartedAtFallback
   });
 
-  await initializeStage({ inquiryId, stage: toStatus, startedAt: now });
+  await initializeStage({ inquiryId, stage: toStatus, overrideStartedAt: now });
 
   const { data: inquiry, error: updateError } = await supabaseAdmin
     .from('inquiries')
@@ -116,5 +113,6 @@ const transitionStage = async ({
 
 module.exports = {
   initializeStage,
-  transitionStage
+  transitionStage,
+  toHours
 };

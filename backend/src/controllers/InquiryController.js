@@ -101,7 +101,7 @@ const createInquiry = async (req, res) => {
     await initializeStage({
       inquiryId: data.id,
       stage: 'received',
-      startedAt: data.created_at
+      overrideStartedAt: data.created_at
     });
 
     // Log audit trail

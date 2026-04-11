@@ -1,6 +1,7 @@
 const { supabaseAdmin } = require('../config/supabase');
 const NotificationService = require('../services/NotificationService');
 const { transitionStage } = require('../services/StageTransitionService');
+const { getSingleRow } = require('../utils/queryRow');
 
 const getPendingReviews = async (req, res) => {
   try {
@@ -47,7 +48,7 @@ const submitReview = async (req, res) => {
       .select('status, created_at, updated_at')
       .eq('id', inquiry_id);
 
-    const currentInquiry = Array.isArray(inquiry) ? inquiry[0] : inquiry;
+    const currentInquiry = getSingleRow(inquiry);
     if (!currentInquiry) {
       return res.status(404).json({ error: 'Inquiry not found' });
     }
