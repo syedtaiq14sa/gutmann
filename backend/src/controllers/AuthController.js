@@ -22,7 +22,7 @@ const register = async (req, res) => {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
-    const validRoles = ['ceo', 'salesperson', 'qc', 'technical', 'estimation', 'client'];
+    const validRoles = ['ceo', 'salesperson', 'qc', 'technical', 'estimation', 'client', 'supply_chain'];
     if (!validRoles.includes(role)) {
       return res.status(400).json({ error: 'Invalid role' });
     }

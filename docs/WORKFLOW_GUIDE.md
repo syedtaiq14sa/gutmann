@@ -17,8 +17,9 @@ The GUTMANN system manages project inquiries through a structured workflow with 
 6. ESTIMATION        → Estimation team creates quotation
 7. CEO APPROVAL      → CEO reviews and approves/rejects
 8. CLIENT REVIEW     → Client accepts/rejects/negotiates
-9. APPROVED          → Project won
-10. REJECTED          → Project lost
+9. APPROVED          → Client approval confirmed
+10. SUPPLY CHAIN      → Post-approval processing
+11. REJECTED          → Project lost
 ```
 
 ---
@@ -38,9 +39,10 @@ The GUTMANN system manages project inquiries through a structured workflow with 
 | ceo_approval | client_review | ceo |
 | ceo_approval | rejected | ceo |
 | ceo_approval | estimation | ceo |
-| client_review | approved | ceo, salesperson |
+| client_review | approved | ceo, salesperson, client |
 | client_review | rejected | ceo, salesperson |
 | client_review | ceo_approval | ceo |
+| approved | supply_chain | ceo, salesperson, client |
 
 ---
 
@@ -56,6 +58,7 @@ The GUTMANN system manages project inquiries through a structured workflow with 
 | estimation | 72 |
 | ceo_approval | 24 |
 | client_review | 120 |
+| supply_chain | 72 |
 
 Inquiries exceeding 3 days in any stage are flagged as **bottlenecks**.
 
@@ -97,6 +100,11 @@ Inquiries exceeding 3 days in any stage are flagged as **bottlenecks**.
 - View submitted quotations
 - Accept, reject, or request negotiation
 - Counter-offer on pricing
+
+### Supply Chain Department
+- Process approved projects for delivery
+- Coordinate procurement and execution handoff
+- Track downstream execution readiness
 
 ---
 

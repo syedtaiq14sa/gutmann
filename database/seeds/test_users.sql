@@ -8,6 +8,7 @@
 --   qc@gutmann.com         -> Qc@12345
 --   technical@gutmann.com  -> Tech@12345
 --   estimation@gutmann.com -> Est@12345
+--   supply@gutmann.com     -> Supply@12345
 --
 -- Regenerate hashes at any time:
 --   cd <repo-root> && node scripts/generate-bcrypt-hashes.js
@@ -90,6 +91,21 @@ WHERE NOT EXISTS (
   SELECT 1 FROM public.users WHERE email = 'estimation@gutmann.com'
 );
 
+-- Supply Chain
+INSERT INTO public.users (id, email, password_hash, name, role, is_active, created_at, updated_at)
+SELECT
+  gen_random_uuid(),
+  'supply@gutmann.com',
+  '$2a$12$C/.Zjdcb9JfWixNf7LwQWO0zZ57IK4fBwdH6bVBO89T0V8OqCdjW.',
+  'Yousef Kareem',
+  'supply_chain',
+  true,
+  NOW(),
+  NOW()
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.users WHERE email = 'supply@gutmann.com'
+);
+
 -- Verify inserted rows
 SELECT id, email, name, role, is_active, created_at
 FROM public.users
@@ -98,7 +114,8 @@ WHERE email IN (
   'sales@gutmann.com',
   'qc@gutmann.com',
   'technical@gutmann.com',
-  'estimation@gutmann.com'
+  'estimation@gutmann.com',
+  'supply@gutmann.com'
 )
 ORDER BY
   CASE role
@@ -107,4 +124,5 @@ ORDER BY
     WHEN 'qc'          THEN 3
     WHEN 'technical'   THEN 4
     WHEN 'estimation'  THEN 5
+    WHEN 'supply_chain' THEN 6
   END;

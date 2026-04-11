@@ -25,9 +25,12 @@ const WORKFLOW_TRANSITIONS = {
     estimation: ['ceo']
   },
   client_review: {
-    approved: ['ceo', 'salesperson'],
+    approved: ['ceo', 'salesperson', 'client'],
     rejected: ['ceo', 'salesperson'],
     ceo_approval: ['ceo']
+  },
+  approved: {
+    supply_chain: ['ceo', 'salesperson', 'client']
   }
 };
 
@@ -62,6 +65,7 @@ class WorkflowEngine {
       'ceo_approval',
       'client_review',
       'approved',
+      'supply_chain',
       'rejected'
     ];
   }

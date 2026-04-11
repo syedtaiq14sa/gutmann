@@ -16,6 +16,7 @@ function Dashboard() {
       case 'qc':
       case 'technical':
       case 'estimation':
+      case 'supply_chain':
         return <DepartmentDashboard />;
       default:
         return <div>Unauthorized</div>;

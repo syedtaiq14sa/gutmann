@@ -12,6 +12,7 @@ function ProjectDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sendingToQC, setSendingToQC] = useState(false);
+  const [movingNext, setMovingNext] = useState(false);
   const [showQCReviewForm, setShowQCReviewForm] = useState(false);
 
   useEffect(() => {
@@ -51,6 +52,41 @@ function ProjectDetails() {
     }
   };
 
+  const getNextAction = () => {
+    if (!user?.role || !project?.status) return null;
+
+    const stageActions = {
+      technical_review: { nextStatus: 'estimation', roles: ['technical'] },
+      estimation: { nextStatus: 'ceo_approval', roles: ['estimation'] },
+      ceo_approval: { nextStatus: 'client_review', roles: ['ceo'] },
+      client_review: { nextStatus: 'approved', roles: ['client'] },
+      approved: { nextStatus: 'supply_chain', roles: ['ceo', 'salesperson', 'client'] }
+    };
+
+    const action = stageActions[project.status];
+    if (!action || !action.roles.includes(user.role)) return null;
+    return action;
+  };
+
+  const handleNext = async () => {
+    const action = getNextAction();
+    if (!action) return;
+
+    setMovingNext(true);
+    setError('');
+    try {
+      await api.put(`/inquiries/${id}/stage`, { new_status: action.nextStatus });
+      const response = await api.get(`/projects/${id}`);
+      setProject(response.data);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to move to next stage');
+    } finally {
+      setMovingNext(false);
+    }
+  };
+
+  const nextAction = getNextAction();
+
   if (loading) return <div className="loading-spinner">Loading project...</div>;
   if (error) return <div className="error-message">{error}</div>;
   if (!project) return <div>Project not found</div>;
@@ -80,6 +116,16 @@ function ProjectDetails() {
             Review / Approve
           </button>
         )}
+        {nextAction && (
+          <button
+            onClick={handleNext}
+            className="btn-primary"
+            disabled={movingNext}
+            style={{ marginLeft: '16px' }}
+          >
+            {movingNext ? 'Moving...' : 'Next'}
+          </button>
+        )}
       </div>
 
       <div className="details-grid">
@@ -94,7 +140,7 @@ function ProjectDetails() {
         <div className="detail-card">
           <h3>Workflow Stage</h3>
           <div className="workflow-stages">
-            {['received', 'qc_review', 'technical_review', 'estimation', 'ceo_approval', 'client_review', 'approved'].map(stage => (
+            {['received', 'qc_review', 'technical_review', 'estimation', 'ceo_approval', 'client_review', 'approved', 'supply_chain'].map(stage => (
               <div key={stage} className={`stage-item ${project.status === stage ? 'active' : ''}`}>
                 {stage.replace('_', ' ')}
               </div>

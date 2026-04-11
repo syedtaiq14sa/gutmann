@@ -49,7 +49,14 @@ const estimationAccess = roleCheck(ROLES.CEO, ROLES.ESTIMATION);
 /**
  * Internal staff access (all roles except client)
  */
-const internalAccess = roleCheck(ROLES.CEO, ROLES.SALESPERSON, ROLES.QC, ROLES.TECHNICAL, ROLES.ESTIMATION);
+const internalAccess = roleCheck(
+  ROLES.CEO,
+  ROLES.SALESPERSON,
+  ROLES.QC,
+  ROLES.TECHNICAL,
+  ROLES.ESTIMATION,
+  ROLES.SUPPLY_CHAIN
+);
 
 /**
  * Client-only access
