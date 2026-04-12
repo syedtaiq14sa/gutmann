@@ -14,6 +14,14 @@ function QCReviewForm({ inquiry, titleId, onSuccess, onCancel }) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const checklistItems = [
+    { key: 'documents_complete', label: 'All documents are complete' },
+    { key: 'site_survey_required', label: 'Site survey required' },
+    { key: 'client_info_verified', label: 'Client information verified' },
+    { key: 'scope_clear', label: 'Project scope is clear' }
+  ];
+  const completedChecklist = checklistItems.filter((item) => formData.checklist[item.key]).length;
+  const allChecklistDone = completedChecklist === checklistItems.length;
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -30,6 +38,14 @@ function QCReviewForm({ inquiry, titleId, onSuccess, onCancel }) {
     e.preventDefault();
     if (!formData.decision) {
       setError('Please select a decision');
+      return;
+    }
+    if (!formData.remarks.trim()) {
+      setError('Feedback remarks are mandatory');
+      return;
+    }
+    if (formData.decision === 'approved' && !allChecklistDone) {
+      setError('Complete all checklist items before approving');
       return;
     }
     setLoading(true);
@@ -56,13 +72,11 @@ function QCReviewForm({ inquiry, titleId, onSuccess, onCancel }) {
 
       <div className="form-section">
         <h3>QC Checklist</h3>
-        {[
-          { key: 'documents_complete', label: 'All documents are complete' },
-          { key: 'site_survey_required', label: 'Site survey required' },
-          { key: 'client_info_verified', label: 'Client information verified' },
-          { key: 'scope_clear', label: 'Project scope is clear' }
-        ].map(item => (
-          <div key={item.key} className="form-checkbox">
+        <p className="form-helper-text">Progress: {completedChecklist}/{checklistItems.length} completed</p>
+        <div className="checklist-card-grid">
+          {checklistItems.map(item => (
+            <div key={item.key} className="checklist-card-item">
+              <div className="form-checkbox">
             <input
               type="checkbox"
               id={item.key}
@@ -70,13 +84,15 @@ function QCReviewForm({ inquiry, titleId, onSuccess, onCancel }) {
               checked={formData.checklist[item.key]}
               onChange={handleChecklistChange}
             />
-            <label htmlFor={item.key}>{item.label}</label>
-          </div>
-        ))}
+                <label htmlFor={item.key}>{item.label}</label>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="form-group">
-        <label>Remarks</label>
+        <label>Remarks *</label>
         <textarea name="remarks" value={formData.remarks} onChange={handleChange} rows={3} />
       </div>
 
@@ -101,7 +117,7 @@ function QCReviewForm({ inquiry, titleId, onSuccess, onCancel }) {
       </div>
 
       <div className="form-actions">
-        <button type="submit" className="btn-primary" disabled={loading || !formData.decision}>
+        <button type="submit" className="btn-primary" disabled={loading || !formData.decision || !formData.remarks.trim()}>
           {loading ? 'Submitting...' : 'Submit Review'}
         </button>
         {onCancel && (

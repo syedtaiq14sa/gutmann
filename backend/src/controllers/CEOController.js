@@ -31,9 +31,9 @@ const approveQuotation = async (req, res) => {
 
     let newStatus;
     switch (decision) {
-      case 'approved': newStatus = 'client_review'; break;
-      case 'rejected': newStatus = 'rejected'; break;
-      case 'revision': newStatus = 'estimation'; break;
+      case 'approved': newStatus = 'sales_followup'; break;
+      case 'rejected': newStatus = 'sales_followup'; break;
+      case 'revision': newStatus = 'sales_followup'; break;
       default: newStatus = 'ceo_approval';
     }
 
@@ -120,12 +120,12 @@ const getAnalytics = async (req, res) => {
       totalProjects: projects.length,
       approvedProjects: projects.filter(p => p.status === 'approved').length,
       rejectedProjects: projects.filter(p => p.status === 'rejected').length,
-      pendingProjects: projects.filter(p => !['approved', 'rejected'].includes(p.status)).length,
+      pendingProjects: projects.filter(p => !['approved', 'rejected', 'supply_chain'].includes(p.status)).length,
       totalRevenue: projects
         .filter(p => p.status === 'approved')
         .reduce((sum, p) => sum + (p.quotations?.[0]?.final_price || 0), 0),
       pipelineValue: projects
-        .filter(p => !['approved', 'rejected'].includes(p.status))
+        .filter(p => !['approved', 'rejected', 'supply_chain'].includes(p.status))
         .reduce((sum, p) => sum + (p.quotations?.[0]?.final_price || 0), 0),
       overallTurnaroundAvgHours: turnaroundHours.length
         ? Number((turnaroundHours.reduce((sum, v) => sum + v, 0) / turnaroundHours.length).toFixed(2))

@@ -97,7 +97,7 @@ const rejectQuotation = async (req, res) => {
     const data = await transitionStage({
       inquiryId: id,
       fromStatus: inquiry.status,
-      toStatus: 'rejected',
+      toStatus: 'sales_followup',
       transitionedBy: req.user.id,
       notes: reason,
       fromStartedAtFallback: inquiry.updated_at || inquiry.created_at,
@@ -112,14 +112,14 @@ const rejectQuotation = async (req, res) => {
       details: { reason }
     }]);
 
-    await NotificationService.notifyRole('ceo', `Client rejected quotation for ${inquiry.inquiry_number}`, {
+    await NotificationService.notifyRole('salesperson', `Client rejected quotation for ${inquiry.inquiry_number}`, {
       type: 'rejected',
       inquiry_id: id,
       reason
     });
 
     if (req.io) {
-      req.io.emit('project-status-updated', { projectId: id, status: 'rejected' });
+      req.io.emit('project-status-updated', { projectId: id, status: 'sales_followup' });
     }
 
     res.json(data);

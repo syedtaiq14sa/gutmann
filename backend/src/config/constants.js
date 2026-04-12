@@ -7,6 +7,7 @@ const WORKFLOW_STAGES = [
   'technical_revision',
   'estimation',
   'ceo_approval',
+  'sales_followup',
   'client_review',
   'approved',
   'supply_chain',
@@ -22,6 +23,7 @@ const SLA_HOURS = {
   technical_revision: 48,
   estimation: 72,
   ceo_approval: 24,
+  sales_followup: 48,
   client_review: 120
 };
 
@@ -61,6 +63,7 @@ const STATUS_LABELS = {
   technical_revision: 'Technical Revision',
   estimation: 'Estimation',
   ceo_approval: 'CEO Approval',
+  sales_followup: 'Sales Follow-up',
   client_review: 'Client Review',
   approved: 'Approved',
   supply_chain: 'Supply Chain',

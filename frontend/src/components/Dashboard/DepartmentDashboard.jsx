@@ -22,6 +22,7 @@ function DepartmentDashboard() {
     'technical_revision',
     'estimation',
     'ceo_approval',
+    'sales_followup',
     'client_review',
     'approved',
     'supply_chain',
@@ -41,10 +42,11 @@ function DepartmentDashboard() {
   const roleStage = getDepartmentStatus();
   const roleRank = STAGE_ORDER.indexOf(roleStage);
   const classify = (status) => {
+    if (['sales_followup', 'rejected'].includes(status)) return 'rejected';
     const rank = STAGE_ORDER.indexOf(status);
     if (rank === roleRank || rank === roleRank + 1) return 'active';
     if (rank > roleRank + 1) return 'completed';
-    return 'returned';
+    return 'active';
   };
 
   const visibleProjects = projects.filter((project) => {
@@ -54,7 +56,7 @@ function DepartmentDashboard() {
 
   const myProjects = visibleProjects.filter(p => classify(p.status) === 'active');
   const completedProjects = visibleProjects.filter(p => classify(p.status) === 'completed');
-  const returnedProjects = visibleProjects.filter(p => classify(p.status) === 'returned');
+  const rejectedProjects = visibleProjects.filter(p => classify(p.status) === 'rejected');
 
   if (loading) return <div className="loading-spinner">Loading...</div>;
 
@@ -75,8 +77,8 @@ function DepartmentDashboard() {
           <p className="kpi-value">{completedProjects.length}</p>
         </div>
         <div className="kpi-card warning">
-          <h3>Returned</h3>
-          <p className="kpi-value">{returnedProjects.length}</p>
+          <h3>Rejected</h3>
+          <p className="kpi-value">{rejectedProjects.length}</p>
         </div>
       </div>
 
@@ -121,16 +123,16 @@ function DepartmentDashboard() {
       </div>
 
       <div className="task-section" style={{ marginTop: '16px' }}>
-        <h2>Returned</h2>
-        {returnedProjects.length === 0 ? (
-          <p className="empty-state">No returned items.</p>
+        <h2>Rejected (Sent to Sales)</h2>
+        {rejectedProjects.length === 0 ? (
+          <p className="empty-state">No rejected items.</p>
         ) : (
           <div className="task-list">
-            {returnedProjects.slice(0, 8).map(project => (
+            {rejectedProjects.slice(0, 8).map(project => (
               <div key={project.id} className="task-card priority-medium" onClick={() => navigate(`/projects/${project.id}`)}>
                 <div className="task-header">
                   <span>{project.inquiry_number}</span>
-                  <span className="priority-badge priority-medium">returned</span>
+                  <span className="priority-badge priority-medium">rejected</span>
                 </div>
                 <p>{project.client_name}</p>
                 <p>Current Stage: {project.status.replace('_', ' ')}</p>
