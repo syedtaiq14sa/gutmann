@@ -7,6 +7,7 @@ function StageTracker({ projects }) {
     { stage: 'Technical', count: projects.filter(p => p.status === 'technical_review').length },
     { stage: 'Estimation', count: projects.filter(p => p.status === 'estimation').length },
     { stage: 'CEO Approval', count: projects.filter(p => p.status === 'ceo_approval').length },
+    { stage: 'Sales Follow-up', count: projects.filter(p => p.status === 'sales_followup').length },
     { stage: 'Client Review', count: projects.filter(p => p.status === 'client_review').length },
     { stage: 'Approved', count: projects.filter(p => p.status === 'approved').length },
     { stage: 'Supply Chain', count: projects.filter(p => p.status === 'supply_chain').length }

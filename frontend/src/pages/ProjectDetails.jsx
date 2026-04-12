@@ -9,6 +9,7 @@ const WORKFLOW_STAGES = [
   { key: 'technical_review', label: 'Technical' },
   { key: 'estimation', label: 'Estimation' },
   { key: 'ceo_approval', label: 'CEO Approval' },
+  { key: 'sales_followup', label: 'Sales Follow-up' },
   { key: 'client_review', label: 'Client Approval' },
   { key: 'supply_chain', label: 'Supply Chain' }
 ];
@@ -16,11 +17,10 @@ const WORKFLOW_STAGES = [
 const STAGE_PROGRESS_ORDER = [
   'received',
   'qc_review',
-  'qc_revision',
   'technical_review',
-  'technical_revision',
   'estimation',
   'ceo_approval',
+  'sales_followup',
   'client_review',
   'approved',
   'supply_chain',
@@ -32,6 +32,7 @@ const SLA_HOURS = {
   technical_review: 72,
   estimation: 72,
   ceo_approval: 24,
+  sales_followup: 48,
   client_review: 120,
   supply_chain: 72
 };
@@ -63,6 +64,13 @@ const STAGE_REQUIREMENTS = {
     ],
     requireFeedback: true
   },
+  sales_followup: {
+    checklist: [
+      { key: 'rejection_feedback_reviewed', label: 'Rejection feedback reviewed' },
+      { key: 'followup_plan_prepared', label: 'Follow-up plan prepared' }
+    ],
+    requireFeedback: true
+  },
   client_review: {
     checklist: [
       { key: 'client_response_recorded', label: 'Client response recorded' }
@@ -78,10 +86,11 @@ const createStageInputState = (status) => {
     return {
       checklist: {},
       feedback: '',
-      estimated_cost: '',
-      final_price: '',
-      client_response: ''
-    };
+        estimated_cost: '',
+        final_price: '',
+        client_response: '',
+        decision: ''
+      };
   }
   return {
     checklist: requirements.checklist.reduce((acc, item) => {
@@ -91,7 +100,8 @@ const createStageInputState = (status) => {
     feedback: '',
     estimated_cost: '',
     final_price: '',
-    client_response: ''
+    client_response: '',
+    decision: ''
   };
 };
 
@@ -207,8 +217,9 @@ function ProjectDetails() {
     const stageActions = {
       technical_review: { nextStatus: 'estimation', roles: ['technical'] },
       estimation: { nextStatus: 'ceo_approval', roles: ['estimation'] },
-      ceo_approval: { nextStatus: 'client_review', roles: ['ceo'] },
-      client_review: { nextStatus: 'approved', roles: ['client'] },
+      ceo_approval: { nextStatus: 'sales_followup', roles: ['ceo'] },
+      sales_followup: { nextStatus: 'client_review', roles: ['salesperson', 'ceo'] },
+      client_review: { nextStatus: 'approved', roles: ['client', 'salesperson', 'ceo'] },
       approved: { nextStatus: 'supply_chain', roles: ['ceo', 'salesperson', 'client'] }
     };
     const action = stageActions[project.status];
@@ -216,7 +227,7 @@ function ProjectDetails() {
     return action;
   };
 
-  const moveStage = async (nextStatus) => {
+  const moveStage = async (nextStatus, extraPayload = {}) => {
     const estimatedCostValue = stageInput.estimated_cost === '' ? null : Number(stageInput.estimated_cost);
     const finalPriceValue = stageInput.final_price === '' ? null : Number(stageInput.final_price);
     setMovingNext(true);
@@ -228,7 +239,9 @@ function ProjectDetails() {
         feedback: stageInput.feedback,
         estimated_cost: Number.isFinite(estimatedCostValue) ? estimatedCostValue : null,
         final_price: Number.isFinite(finalPriceValue) ? finalPriceValue : null,
-        client_response: stageInput.client_response
+        client_response: stageInput.client_response,
+        decision: stageInput.decision || null,
+        ...extraPayload
       });
       await fetchAll();
     } catch (err) {
@@ -252,6 +265,8 @@ function ProjectDetails() {
   );
   const hasClientResponse = !stageRequirements?.requireClientResponse || stageInput.client_response.trim().length > 0;
   const isNextReady = checkedAllChecklist && hasFeedback && hasValidPricing && hasClientResponse;
+  const isClientDecisionReady = checkedAllChecklist && hasFeedback;
+  const canActOnStage = Boolean(nextAction || (project?.status === 'ceo_approval' && user?.role === 'ceo'));
 
   const currentRank = STAGE_PROGRESS_ORDER.indexOf(project?.status);
   const quotation = project?.quotation || project?.quotations?.[0];
@@ -322,7 +337,7 @@ function ProjectDetails() {
         )}
       </div>
 
-      {nextAction && stageRequirements && (
+      {canActOnStage && stageRequirements && (
         <div className="detail-card" style={{ marginTop: '16px' }}>
           <h3>Mandatory Checklist & Feedback</h3>
           <div className="form-group">
@@ -438,15 +453,65 @@ function ProjectDetails() {
         </div>
       )}
 
-      {nextAction && (
+      {canActOnStage && (
         <div className="sticky-action-bar">
           {project.status === 'ceo_approval' && user?.role === 'ceo' ? (
             <>
-              <button onClick={() => moveStage('client_review')} className="btn-primary" disabled={movingNext || !isNextReady}>
-                {movingNext ? 'Approving...' : 'Approve & Send to Client'}
+              <button
+                onClick={() => moveStage('sales_followup', { decision: 'approved' })}
+                className="btn-primary"
+                disabled={movingNext || !isNextReady}
+              >
+                {movingNext ? 'Approving...' : 'Approve & Send to Sales'}
               </button>
-              <button onClick={() => moveStage('estimation')} className="btn-danger" disabled={movingNext || !hasFeedback}>
-                {movingNext ? 'Rejecting...' : 'Reject & Return to Estimation'}
+              <button
+                onClick={() => moveStage('sales_followup', { decision: 'rejected' })}
+                className="btn-danger"
+                disabled={movingNext || !hasFeedback}
+              >
+                {movingNext ? 'Rejecting...' : 'Reject & Send to Sales'}
+              </button>
+            </>
+          ) : project.status === 'sales_followup' && user?.role === 'salesperson' ? (
+            <>
+              <button onClick={() => moveStage('client_review', { decision: 'send_to_client' })} className="btn-primary" disabled={movingNext || !isNextReady}>
+                {movingNext ? 'Sending...' : 'Send to Client'}
+              </button>
+              <button onClick={() => moveStage('qc_review', { decision: 'restart_qc' })} className="btn-secondary" disabled={movingNext || !hasFeedback}>
+                Restart QC
+              </button>
+              <button onClick={() => moveStage('technical_review', { decision: 'restart_technical' })} className="btn-secondary" disabled={movingNext || !hasFeedback}>
+                Restart Technical
+              </button>
+              <button onClick={() => moveStage('estimation', { decision: 'restart_estimation' })} className="btn-secondary" disabled={movingNext || !hasFeedback}>
+                Restart Estimation
+              </button>
+            </>
+          ) : project.status === 'technical_review' && user?.role === 'technical' ? (
+            <>
+              <button onClick={() => moveStage('estimation')} className="btn-primary" disabled={movingNext || !isNextReady}>
+                {movingNext ? 'Moving...' : 'Next'}
+              </button>
+              <button onClick={() => moveStage('sales_followup', { decision: 'rejected' })} className="btn-danger" disabled={movingNext || !hasFeedback}>
+                Reject to Sales
+              </button>
+            </>
+          ) : project.status === 'estimation' && user?.role === 'estimation' ? (
+            <>
+              <button onClick={() => moveStage('ceo_approval')} className="btn-primary" disabled={movingNext || !isNextReady}>
+                {movingNext ? 'Moving...' : 'Next'}
+              </button>
+              <button onClick={() => moveStage('sales_followup', { decision: 'rejected' })} className="btn-danger" disabled={movingNext || !hasFeedback}>
+                Reject to Sales
+              </button>
+            </>
+          ) : project.status === 'client_review' && ['salesperson', 'client', 'ceo'].includes(user?.role) ? (
+            <>
+              <button onClick={() => moveStage('approved', { client_response: stageInput.client_response || 'approved', decision: 'approved' })} className="btn-primary" disabled={movingNext || !isClientDecisionReady}>
+                {movingNext ? 'Updating...' : 'Client Approved'}
+              </button>
+              <button onClick={() => moveStage('sales_followup', { client_response: stageInput.client_response || 'rejected', decision: 'rejected' })} className="btn-danger" disabled={movingNext || !isClientDecisionReady}>
+                Client Rejected
               </button>
             </>
           ) : (

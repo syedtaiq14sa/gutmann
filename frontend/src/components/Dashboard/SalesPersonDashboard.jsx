@@ -46,6 +46,10 @@ function SalesPersonDashboard() {
 
   if (loading) return <div className="loading-spinner">Loading...</div>;
 
+  const rejectedProjects = projects.filter((p) => p.status === 'sales_followup' || p.status === 'rejected');
+  const completedProjects = projects.filter((p) => ['approved', 'supply_chain'].includes(p.status));
+  const activeProjects = projects.filter((p) => !['approved', 'supply_chain', 'sales_followup', 'rejected'].includes(p.status));
+
   return (
     <div className="salesperson-dashboard">
       <div className="dashboard-header">
@@ -70,17 +74,51 @@ function SalesPersonDashboard() {
           <h3>My Projects</h3>
           <p className="kpi-value">{projects.length}</p>
         </div>
+        <div className="kpi-card alert">
+          <h3>Rejected Follow-ups</h3>
+          <p className="kpi-value">{rejectedProjects.length}</p>
+        </div>
         <div className="kpi-card success">
-          <h3>Won</h3>
-          <p className="kpi-value">{projects.filter(p => p.status === 'approved').length}</p>
+          <h3>Completed</h3>
+          <p className="kpi-value">{completedProjects.length}</p>
         </div>
         <div className="kpi-card warning">
-          <h3>Pending</h3>
-          <p className="kpi-value">{projects.filter(p => !['approved', 'rejected'].includes(p.status)).length}</p>
+          <h3>Active</h3>
+          <p className="kpi-value">{activeProjects.length}</p>
         </div>
       </div>
 
       <div className="projects-table-section">
+        <h2>Rejected Queries (Central Follow-up)</h2>
+        {rejectedProjects.length === 0 ? (
+          <p className="empty-state">No rejected queries assigned to Sales.</p>
+        ) : (
+          <table className="data-table" style={{ marginBottom: '20px' }}>
+            <thead>
+              <tr>
+                <th>Inquiry #</th>
+                <th>Client</th>
+                <th>Status</th>
+                <th>Updated</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rejectedProjects.slice(0, 10).map(project => (
+                <tr key={project.id}>
+                  <td>{project.inquiry_number}</td>
+                  <td>{project.client_name}</td>
+                  <td><span className={`status-badge status-${project.status}`}>{project.status?.replace('_', ' ')}</span></td>
+                  <td>{new Date(project.updated_at || project.created_at).toLocaleString()}</td>
+                  <td>
+                    <button onClick={() => navigate(`/projects/${project.id}`)} className="btn-primary btn-sm">Open Follow-up</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
         <h2>Recent Projects</h2>
         <table className="data-table">
           <thead>

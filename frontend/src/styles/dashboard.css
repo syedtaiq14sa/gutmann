@@ -325,6 +325,25 @@
   color: #334155;
 }
 
+.form-helper-text {
+  margin: 0 0 10px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.checklist-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.checklist-card-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #f8fafc;
+}
+
 .workflow-stages {
   display: flex;
   flex-wrap: wrap;

@@ -48,6 +48,13 @@ class NotificationService {
     }
   }
 
+  async notifyRole(role, message, metadata = {}) {
+    const title = metadata.title || 'Workflow Update';
+    const type = metadata.type || 'info';
+    const relatedId = metadata.inquiry_id || null;
+    await this.notifyRoleUsers(role, title, message, type, relatedId);
+  }
+
   async notifyWorkflowTransition(projectId, fromStatus, toStatus, io = null) {
     const roleMap = {
       qc_review: 'qc',

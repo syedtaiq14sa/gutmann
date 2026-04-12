@@ -4,30 +4,29 @@ const WORKFLOW_TRANSITIONS = {
   },
   qc_review: {
     technical_review: ['qc', 'ceo'],
-    qc_revision: ['qc', 'ceo']
+    sales_followup: ['qc', 'ceo']
   },
-  qc_revision: {
-    qc_review: ['salesperson', 'ceo']
+  sales_followup: {
+    qc_review: ['salesperson', 'ceo'],
+    technical_review: ['salesperson', 'ceo'],
+    estimation: ['salesperson', 'ceo'],
+    ceo_approval: ['salesperson', 'ceo'],
+    client_review: ['salesperson', 'ceo']
   },
   technical_review: {
     estimation: ['technical', 'ceo'],
-    technical_revision: ['technical', 'ceo']
-  },
-  technical_revision: {
-    technical_review: ['salesperson', 'ceo']
+    sales_followup: ['technical', 'ceo']
   },
   estimation: {
-    ceo_approval: ['estimation', 'ceo']
+    ceo_approval: ['estimation', 'ceo'],
+    sales_followup: ['estimation', 'ceo']
   },
   ceo_approval: {
-    client_review: ['ceo'],
-    rejected: ['ceo'],
-    estimation: ['ceo']
+    sales_followup: ['ceo']
   },
   client_review: {
     approved: ['ceo', 'salesperson', 'client'],
-    rejected: ['ceo', 'salesperson'],
-    ceo_approval: ['ceo']
+    sales_followup: ['ceo', 'salesperson', 'client']
   },
   approved: {
     supply_chain: ['ceo', 'salesperson', 'client']
@@ -58,11 +57,10 @@ class WorkflowEngine {
     return [
       'received',
       'qc_review',
-      'qc_revision',
       'technical_review',
-      'technical_revision',
       'estimation',
       'ceo_approval',
+      'sales_followup',
       'client_review',
       'approved',
       'supply_chain',

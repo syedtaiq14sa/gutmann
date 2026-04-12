@@ -17,7 +17,7 @@ const STAGE_ADVANCE_REQUIREMENTS = {
     requirePricing: true
   },
   ceo_approval: {
-    next_status: 'client_review',
+    next_status: 'sales_followup',
     checklist: ['submission_reviewed', 'commercial_terms_reviewed'],
     requireFeedback: true
   },
@@ -147,15 +147,18 @@ const getAllInquiries = async (req, res) => {
 
     // Role-based filtering
     if (req.user.role === 'salesperson') {
-      query = query.eq('created_by', req.user.id);
+      const { data: allInquiries, error: allError } = await query;
+      if (allError) throw allError;
+      const scoped = (allInquiries || []).filter((row) => row.created_by === req.user.id || row.status === 'sales_followup');
+      return res.json({ data: scoped, total: scoped.length, page: parseInt(page), limit: parseInt(limit) });
     } else if (req.user.role === 'qc') {
-      query = query.in('status', ['received', 'qc_review', 'qc_revision']);
+      query = query.in('status', ['received', 'qc_review', 'technical_review', 'estimation', 'ceo_approval', 'sales_followup', 'client_review', 'approved', 'supply_chain', 'rejected']);
     } else if (req.user.role === 'technical') {
-      query = query.in('status', ['technical_review', 'technical_revision']);
+      query = query.in('status', ['technical_review', 'estimation', 'ceo_approval', 'sales_followup', 'client_review', 'approved', 'supply_chain', 'rejected']);
     } else if (req.user.role === 'estimation') {
-      query = query.eq('status', 'estimation');
+      query = query.in('status', ['estimation', 'ceo_approval', 'sales_followup', 'client_review', 'approved', 'supply_chain', 'rejected']);
     } else if (req.user.role === 'supply_chain') {
-      query = query.eq('status', 'supply_chain');
+      query = query.in('status', ['supply_chain', 'rejected', 'sales_followup']);
     }
 
     if (status) {
@@ -277,7 +280,7 @@ const getInquiryHistory = async (req, res) => {
 const moveToStage = async (req, res) => {
   try {
     const { id } = req.params;
-    const { new_status, notes } = req.body;
+    const { new_status, notes, feedback } = req.body;
 
     const { data: inquiry, error: fetchError } = await supabaseAdmin
       .from('inquiries')
@@ -313,11 +316,12 @@ const moveToStage = async (req, res) => {
       fromStatus: inquiry.status,
       toStatus: new_status,
       transitionedBy: req.user.id,
-      notes,
+      notes: notes || feedback || null,
       fromStartedAtFallback: inquiry.updated_at || inquiry.created_at,
       details: {
         checklist: req.body.checklist || null,
         feedback: req.body.feedback || null,
+        decision: req.body.decision || null,
         estimated_cost: estimatedCost,
         final_price: finalPrice,
         client_response: req.body.client_response || null

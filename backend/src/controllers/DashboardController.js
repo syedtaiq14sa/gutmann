@@ -2,11 +2,10 @@ const { supabaseAdmin } = require('../config/supabase');
 const STAGE_ORDER = [
   'received',
   'qc_review',
-  'qc_revision',
   'technical_review',
-  'technical_revision',
   'estimation',
   'ceo_approval',
+  'sales_followup',
   'client_review',
   'approved',
   'supply_chain',
@@ -20,11 +19,11 @@ const ROLE_STAGE_RANK = {
 };
 
 const ROLE_VISIBLE_STATUSES = {
-  qc: ['received', 'qc_review', 'qc_revision', 'technical_review', 'technical_revision', 'estimation', 'ceo_approval', 'client_review', 'approved', 'supply_chain', 'rejected'],
-  technical: ['technical_review', 'technical_revision', 'estimation', 'ceo_approval', 'client_review', 'approved', 'supply_chain', 'rejected'],
-  estimation: ['estimation', 'ceo_approval', 'client_review', 'approved', 'supply_chain', 'rejected'],
-  ceo: ['ceo_approval'],
-  supply_chain: ['supply_chain']
+  qc: ['received', 'qc_review', 'technical_review', 'estimation', 'ceo_approval', 'sales_followup', 'client_review', 'approved', 'supply_chain', 'rejected'],
+  technical: ['technical_review', 'estimation', 'ceo_approval', 'sales_followup', 'client_review', 'approved', 'supply_chain', 'rejected'],
+  estimation: ['estimation', 'ceo_approval', 'sales_followup', 'client_review', 'approved', 'supply_chain', 'rejected'],
+  ceo: ['received', 'qc_review', 'technical_review', 'estimation', 'ceo_approval', 'sales_followup', 'client_review', 'approved', 'supply_chain', 'rejected'],
+  supply_chain: ['supply_chain', 'sales_followup', 'rejected']
 };
 
 const getVisibilityGroup = (role, status) => {
@@ -48,14 +47,17 @@ const getProjects = async (req, res) => {
       .order('created_at', { ascending: false })
       .limit(100);
 
-    if (req.user.role === 'salesperson') {
-      query = query.eq('created_by', req.user.id);
-    } else if (ROLE_VISIBLE_STATUSES[req.user.role]) {
+    if (ROLE_VISIBLE_STATUSES[req.user.role]) {
       query = query.in('status', ROLE_VISIBLE_STATUSES[req.user.role]);
     }
 
     const { data, error } = await query;
     if (error) throw error;
+
+    if (req.user.role === 'salesperson') {
+      const scoped = (data || []).filter((item) => item.created_by === req.user.id || item.status === 'sales_followup');
+      return res.json(scoped);
+    }
 
     res.json(data);
   } catch (err) {
@@ -78,14 +80,14 @@ const getTasks = async (req, res) => {
       query = query.in('status', statusFilter);
     }
 
-    if (req.user.role === 'salesperson') {
-      query = query.eq('created_by', req.user.id);
-    }
-
     const { data, error } = await query;
     if (error) throw error;
 
-    const tasks = (data || []).map(item => ({
+    const scopedData = req.user.role === 'salesperson'
+      ? (data || []).filter((item) => item.created_by === req.user.id || item.status === 'sales_followup')
+      : (data || []);
+
+    const tasks = scopedData.map(item => ({
       ...item,
       title: item.inquiry_number,
       project_id: item.id,
@@ -117,8 +119,11 @@ const getReports = async (req, res) => {
       { stage: 'Technical', count: projects.filter(p => p.status === 'technical_review').length },
       { stage: 'Estimation', count: projects.filter(p => p.status === 'estimation').length },
       { stage: 'CEO', count: projects.filter(p => p.status === 'ceo_approval').length },
+      { stage: 'Sales Follow-up', count: projects.filter(p => p.status === 'sales_followup').length },
+      { stage: 'Client', count: projects.filter(p => p.status === 'client_review').length },
       { stage: 'Approved', count: projects.filter(p => p.status === 'approved').length },
-      { stage: 'Supply Chain', count: projects.filter(p => p.status === 'supply_chain').length }
+      { stage: 'Supply Chain', count: projects.filter(p => p.status === 'supply_chain').length },
+      { stage: 'Rejected', count: projects.filter(p => p.status === 'rejected').length }
     ];
 
     const statusBreakdown = stageDistribution.map(s => ({ name: s.stage, value: s.count }));

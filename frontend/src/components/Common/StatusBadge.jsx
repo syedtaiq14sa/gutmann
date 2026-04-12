@@ -8,8 +8,10 @@ const STATUS_CONFIG = {
   technical_revision: { label: 'Technical Revision', color: '#fd7e14', bg: '#ffe5d0' },
   estimation: { label: 'Estimation', color: '#6610f2', bg: '#e0cffc' },
   ceo_approval: { label: 'CEO Approval', color: '#dc3545', bg: '#f8d7da' },
+  sales_followup: { label: 'Sales Follow-up', color: '#b45309', bg: '#fef3c7' },
   client_review: { label: 'Client Review', color: '#20c997', bg: '#d1ecf1' },
   approved: { label: 'Approved', color: '#198754', bg: '#d1e7dd' },
+  supply_chain: { label: 'Supply Chain', color: '#0369a1', bg: '#e0f2fe' },
   rejected: { label: 'Rejected', color: '#dc3545', bg: '#f8d7da' }
 };
 
