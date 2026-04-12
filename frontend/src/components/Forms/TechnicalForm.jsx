@@ -55,11 +55,14 @@ function TechnicalForm({ inquiry, onSuccess, onCancel }) {
     setLoading(true);
     setError('');
     try {
+      const parsedDuration = formData.estimated_duration === ''
+        ? null
+        : Number(formData.estimated_duration);
       await api.post('/technical/review', {
         inquiry_id: inquiry.id,
         system_type: formData.system_type,
         feasibility: formData.feasibility,
-        estimated_duration: formData.estimated_duration ? parseInt(formData.estimated_duration, 10) : null,
+        estimated_duration: Number.isFinite(parsedDuration) ? parsedDuration : null,
         technical_specs: { notes: formData.technical_specs, checklist: formData.checklist },
         remarks: formData.remarks,
         decision: formData.decision

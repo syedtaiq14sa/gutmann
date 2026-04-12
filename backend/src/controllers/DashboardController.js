@@ -2,9 +2,7 @@ const { supabaseAdmin } = require('../config/supabase');
 const STAGE_ORDER = [
   'received',
   'qc_review',
-  'qc_revision',
   'technical_review',
-  'technical_revision',
   'estimation',
   'ceo_approval',
   'sales_followup',
@@ -21,10 +19,10 @@ const ROLE_STAGE_RANK = {
 };
 
 const ROLE_VISIBLE_STATUSES = {
-  qc: ['received', 'qc_review', 'qc_revision', 'technical_review', 'technical_revision', 'estimation', 'ceo_approval', 'sales_followup', 'client_review', 'approved', 'supply_chain', 'rejected'],
-  technical: ['technical_review', 'technical_revision', 'estimation', 'ceo_approval', 'sales_followup', 'client_review', 'approved', 'supply_chain', 'rejected'],
+  qc: ['received', 'qc_review', 'technical_review', 'estimation', 'ceo_approval', 'sales_followup', 'client_review', 'approved', 'supply_chain', 'rejected'],
+  technical: ['technical_review', 'estimation', 'ceo_approval', 'sales_followup', 'client_review', 'approved', 'supply_chain', 'rejected'],
   estimation: ['estimation', 'ceo_approval', 'sales_followup', 'client_review', 'approved', 'supply_chain', 'rejected'],
-  ceo: ['received', 'qc_review', 'qc_revision', 'technical_review', 'technical_revision', 'estimation', 'ceo_approval', 'sales_followup', 'client_review', 'approved', 'supply_chain', 'rejected'],
+  ceo: ['received', 'qc_review', 'technical_review', 'estimation', 'ceo_approval', 'sales_followup', 'client_review', 'approved', 'supply_chain', 'rejected'],
   supply_chain: ['supply_chain', 'sales_followup', 'rejected']
 };
 

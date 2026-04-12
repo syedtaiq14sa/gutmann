@@ -57,7 +57,6 @@ class WorkflowEngine {
     return [
       'received',
       'qc_review',
-      'qc_revision',
       'technical_review',
       'estimation',
       'ceo_approval',

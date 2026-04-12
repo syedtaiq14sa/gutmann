@@ -17,9 +17,7 @@ const WORKFLOW_STAGES = [
 const STAGE_PROGRESS_ORDER = [
   'received',
   'qc_review',
-  'qc_revision',
   'technical_review',
-  'technical_revision',
   'estimation',
   'ceo_approval',
   'sales_followup',
@@ -219,6 +217,7 @@ function ProjectDetails() {
     const stageActions = {
       technical_review: { nextStatus: 'estimation', roles: ['technical'] },
       estimation: { nextStatus: 'ceo_approval', roles: ['estimation'] },
+      ceo_approval: { nextStatus: 'sales_followup', roles: ['ceo'] },
       sales_followup: { nextStatus: 'client_review', roles: ['salesperson', 'ceo'] },
       client_review: { nextStatus: 'approved', roles: ['client', 'salesperson', 'ceo'] },
       approved: { nextStatus: 'supply_chain', roles: ['ceo', 'salesperson', 'client'] }
@@ -266,6 +265,7 @@ function ProjectDetails() {
   );
   const hasClientResponse = !stageRequirements?.requireClientResponse || stageInput.client_response.trim().length > 0;
   const isNextReady = checkedAllChecklist && hasFeedback && hasValidPricing && hasClientResponse;
+  const isClientDecisionReady = checkedAllChecklist && hasFeedback;
   const canActOnStage = Boolean(nextAction || (project?.status === 'ceo_approval' && user?.role === 'ceo'));
 
   const currentRank = STAGE_PROGRESS_ORDER.indexOf(project?.status);
@@ -507,10 +507,10 @@ function ProjectDetails() {
             </>
           ) : project.status === 'client_review' && ['salesperson', 'client', 'ceo'].includes(user?.role) ? (
             <>
-              <button onClick={() => moveStage('approved', { client_response: 'approved', decision: 'approved' })} className="btn-primary" disabled={movingNext || !hasFeedback}>
+              <button onClick={() => moveStage('approved', { client_response: stageInput.client_response || 'approved', decision: 'approved' })} className="btn-primary" disabled={movingNext || !isClientDecisionReady}>
                 {movingNext ? 'Updating...' : 'Client Approved'}
               </button>
-              <button onClick={() => moveStage('sales_followup', { client_response: 'rejected', decision: 'rejected' })} className="btn-danger" disabled={movingNext || !hasFeedback}>
+              <button onClick={() => moveStage('sales_followup', { client_response: stageInput.client_response || 'rejected', decision: 'rejected' })} className="btn-danger" disabled={movingNext || !isClientDecisionReady}>
                 Client Rejected
               </button>
             </>

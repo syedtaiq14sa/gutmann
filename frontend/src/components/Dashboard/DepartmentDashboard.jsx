@@ -17,9 +17,7 @@ function DepartmentDashboard() {
   const STAGE_ORDER = [
     'received',
     'qc_review',
-    'qc_revision',
     'technical_review',
-    'technical_revision',
     'estimation',
     'ceo_approval',
     'sales_followup',

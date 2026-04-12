@@ -147,10 +147,10 @@ const getAllInquiries = async (req, res) => {
 
     // Role-based filtering
     if (req.user.role === 'salesperson') {
-      const { data: allInquiries, error: allError, count: allCount } = await query;
+      const { data: allInquiries, error: allError } = await query;
       if (allError) throw allError;
       const scoped = (allInquiries || []).filter((row) => row.created_by === req.user.id || row.status === 'sales_followup');
-      return res.json({ data: scoped, total: allCount, page: parseInt(page), limit: parseInt(limit) });
+      return res.json({ data: scoped, total: scoped.length, page: parseInt(page), limit: parseInt(limit) });
     } else if (req.user.role === 'qc') {
       query = query.in('status', ['received', 'qc_review', 'technical_review', 'estimation', 'ceo_approval', 'sales_followup', 'client_review', 'approved', 'supply_chain', 'rejected']);
     } else if (req.user.role === 'technical') {
