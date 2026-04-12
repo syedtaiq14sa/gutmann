@@ -2,6 +2,7 @@ const { supabaseAdmin } = require('../config/supabase');
 const WorkflowEngine = require('../services/WorkflowEngine');
 const NotificationService = require('../services/NotificationService');
 const { generateInquiryNumber, isBottleneck } = require('../utils/helpers');
+const { initializeStage, transitionStage } = require('../services/StageTransitionService');
 
 const STAGE_ADVANCE_REQUIREMENTS = {
   technical_review: {
@@ -97,6 +98,12 @@ const createInquiry = async (req, res) => {
 
     if (error) throw error;
 
+    await initializeStage({
+      inquiryId: data.id,
+      stage: 'received',
+      overrideStartedAt: data.created_at
+    });
+
     // Log audit trail
     await supabaseAdmin.from('audit_log').insert([{
       action: 'inquiry_created',
@@ -175,7 +182,7 @@ const getInquiryById = async (req, res) => {
     const { id } = req.params;
     const { data, error } = await supabaseAdmin
       .from('inquiries')
-      .select('*, quotations(*), qc_reviews(*), technical_reviews(*)')
+      .select('*, quotations(*), qc_reviews(*), technical_reviews(*), project_status(*)')
       .eq('id', id)
       .single();
 
@@ -232,15 +239,34 @@ const updateInquiry = async (req, res) => {
 const getInquiryHistory = async (req, res) => {
   try {
     const { id } = req.params;
-    const { data, error } = await supabaseAdmin
+    const { data: history, error } = await supabaseAdmin
       .from('audit_log')
       .select('*')
       .eq('entity_id', id)
       .eq('entity_type', 'inquiry')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: true });
 
     if (error) throw error;
-    res.json(data);
+    const userIds = [...new Set((history || []).map(item => item.performed_by).filter(Boolean))];
+    let usersById = {};
+
+    if (userIds.length > 0) {
+      const { data: users } = await supabaseAdmin
+        .from('users')
+        .select('id, name, role, email')
+        .in('id', userIds);
+      usersById = (users || []).reduce((acc, user) => {
+        acc[user.id] = user;
+        return acc;
+      }, {});
+    }
+
+    const enrichedHistory = (history || []).map(item => ({
+      ...item,
+      actor: item.performed_by ? usersById[item.performed_by] || null : null
+    }));
+
+    res.json(enrichedHistory);
   } catch (err) {
     console.error('Get inquiry history error:', err);
     res.status(500).json({ error: 'Failed to fetch inquiry history' });
@@ -282,31 +308,21 @@ const moveToStage = async (req, res) => {
       ? Number(req.body.final_price)
       : null;
 
-    const { data, error } = await supabaseAdmin
-      .from('inquiries')
-      .update({ status: new_status, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    await supabaseAdmin.from('audit_log').insert([{
-      action: 'stage_changed',
-      entity_type: 'inquiry',
-      entity_id: id,
-      performed_by: req.user.id,
+    const data = await transitionStage({
+      inquiryId: id,
+      fromStatus: inquiry.status,
+      toStatus: new_status,
+      transitionedBy: req.user.id,
+      notes,
+      fromStartedAtFallback: inquiry.updated_at || inquiry.created_at,
       details: {
-        from: inquiry.status,
-        to: new_status,
-        notes,
         checklist: req.body.checklist || null,
         feedback: req.body.feedback || null,
         estimated_cost: estimatedCost,
         final_price: finalPrice,
         client_response: req.body.client_response || null
       }
-    }]);
+    });
 
     if (req.io) {
       req.io.emit('project-status-updated', { projectId: id, status: new_status });

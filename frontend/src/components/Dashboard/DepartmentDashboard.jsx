@@ -14,6 +14,20 @@ function DepartmentDashboard() {
     dispatch(fetchDashboardData());
   }, [dispatch]);
 
+  const STAGE_ORDER = [
+    'received',
+    'qc_review',
+    'qc_revision',
+    'technical_review',
+    'technical_revision',
+    'estimation',
+    'ceo_approval',
+    'client_review',
+    'approved',
+    'supply_chain',
+    'rejected'
+  ];
+
   const getDepartmentStatus = () => {
     switch(user?.role) {
       case 'qc': return 'qc_review';
@@ -24,7 +38,23 @@ function DepartmentDashboard() {
     }
   };
 
-  const myProjects = projects.filter(p => p.status === getDepartmentStatus());
+  const roleStage = getDepartmentStatus();
+  const roleRank = STAGE_ORDER.indexOf(roleStage);
+  const classify = (status) => {
+    const rank = STAGE_ORDER.indexOf(status);
+    if (rank === roleRank || rank === roleRank + 1) return 'active';
+    if (rank > roleRank + 1) return 'completed';
+    return 'returned';
+  };
+
+  const visibleProjects = projects.filter((project) => {
+    if (user?.role === 'supply_chain') return project.status === 'supply_chain';
+    return roleRank !== -1 && STAGE_ORDER.indexOf(project.status) >= roleRank - 1;
+  });
+
+  const myProjects = visibleProjects.filter(p => classify(p.status) === 'active');
+  const completedProjects = visibleProjects.filter(p => classify(p.status) === 'completed');
+  const returnedProjects = visibleProjects.filter(p => classify(p.status) === 'returned');
 
   if (loading) return <div className="loading-spinner">Loading...</div>;
 
@@ -38,12 +68,20 @@ function DepartmentDashboard() {
         </div>
         <div className="kpi-card">
           <h3>Total Projects</h3>
-          <p className="kpi-value">{projects.length}</p>
+          <p className="kpi-value">{visibleProjects.length}</p>
+        </div>
+        <div className="kpi-card success">
+          <h3>Completed by Dept</h3>
+          <p className="kpi-value">{completedProjects.length}</p>
+        </div>
+        <div className="kpi-card warning">
+          <h3>Returned</h3>
+          <p className="kpi-value">{returnedProjects.length}</p>
         </div>
       </div>
 
       <div className="task-section">
-        <h2>Projects Awaiting Your Review</h2>
+        <h2>Active (Action Required)</h2>
         {myProjects.length === 0 ? (
           <p className="empty-state">No projects pending review ✅</p>
         ) : (
@@ -56,6 +94,46 @@ function DepartmentDashboard() {
                 </div>
                 <p>{project.client_name}</p>
                 <p>Received: {new Date(project.created_at).toLocaleDateString()}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="task-section" style={{ marginTop: '16px' }}>
+        <h2>Completed (Read-only Tracking)</h2>
+        {completedProjects.length === 0 ? (
+          <p className="empty-state">No completed items yet.</p>
+        ) : (
+          <div className="task-list">
+            {completedProjects.slice(0, 8).map(project => (
+              <div key={project.id} className="task-card priority-low" onClick={() => navigate(`/projects/${project.id}`)}>
+                <div className="task-header">
+                  <span>{project.inquiry_number}</span>
+                  <span className="priority-badge priority-low">completed</span>
+                </div>
+                <p>{project.client_name}</p>
+                <p>Current Stage: {project.status.replace('_', ' ')}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="task-section" style={{ marginTop: '16px' }}>
+        <h2>Returned</h2>
+        {returnedProjects.length === 0 ? (
+          <p className="empty-state">No returned items.</p>
+        ) : (
+          <div className="task-list">
+            {returnedProjects.slice(0, 8).map(project => (
+              <div key={project.id} className="task-card priority-medium" onClick={() => navigate(`/projects/${project.id}`)}>
+                <div className="task-header">
+                  <span>{project.inquiry_number}</span>
+                  <span className="priority-badge priority-medium">returned</span>
+                </div>
+                <p>{project.client_name}</p>
+                <p>Current Stage: {project.status.replace('_', ' ')}</p>
               </div>
             ))}
           </div>

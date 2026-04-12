@@ -1,5 +1,6 @@
 const { supabaseAdmin } = require('../config/supabase');
 const WorkflowEngine = require('../services/WorkflowEngine');
+const { transitionStage } = require('../services/StageTransitionService');
 
 const getProjects = async (req, res) => {
   try {
@@ -33,7 +34,7 @@ const getProjectById = async (req, res) => {
     const { id } = req.params;
     const { data, error } = await supabaseAdmin
       .from('inquiries')
-      .select('*, quotations(*), qc_reviews(*), technical_reviews(*)')
+      .select('*, quotations(*), qc_reviews(*), technical_reviews(*), project_status(*)')
       .eq('id', id)
       .single();
 
@@ -101,22 +102,14 @@ const updateProjectStatus = async (req, res) => {
       return res.status(400).json({ error: 'Invalid workflow transition' });
     }
 
-    const { data, error } = await supabaseAdmin
-      .from('inquiries')
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    await supabaseAdmin.from('workflow_transitions').insert([{
-      inquiry_id: id,
-      from_status: project.status,
-      to_status: status,
-      transitioned_by: req.user.id,
-      notes
-    }]);
+    const data = await transitionStage({
+      inquiryId: id,
+      fromStatus: project.status,
+      toStatus: status,
+      transitionedBy: req.user.id,
+      notes,
+      fromStartedAtFallback: project.updated_at || project.created_at
+    });
 
     if (req.io) {
       req.io.emit('project-status-updated', { projectId: id, status });

@@ -1,5 +1,7 @@
 const { supabaseAdmin } = require('../config/supabase');
 const NotificationService = require('../services/NotificationService');
+const { transitionStage } = require('../services/StageTransitionService');
+const { getSingleRow } = require('../utils/queryRow');
 
 const getPendingReviews = async (req, res) => {
   try {
@@ -41,10 +43,25 @@ const submitReview = async (req, res) => {
 
     const newStatus = decision === 'approved' ? 'technical_review' : 'qc_revision';
 
-    await supabaseAdmin
+    const { data: inquiry } = await supabaseAdmin
       .from('inquiries')
-      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .select('status, created_at, updated_at')
       .eq('id', inquiry_id);
+
+    const currentInquiry = getSingleRow(inquiry);
+    if (!currentInquiry) {
+      return res.status(404).json({ error: 'Inquiry not found' });
+    }
+
+    await transitionStage({
+      inquiryId: inquiry_id,
+      fromStatus: currentInquiry.status,
+      toStatus: newStatus,
+      transitionedBy: req.user.id,
+      notes: remarks,
+      fromStartedAtFallback: currentInquiry.updated_at || currentInquiry.created_at,
+      details: { checklist: checklist || {}, feedback: remarks, decision }
+    });
 
     if (req.io) {
       req.io.emit('project-status-updated', { projectId: inquiry_id, status: newStatus });

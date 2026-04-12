@@ -1,8 +1,42 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import api from '../services/api';
 import QCReviewForm from '../components/Forms/QCReviewForm';
+
+const WORKFLOW_STAGES = [
+  { key: 'qc_review', label: 'QC' },
+  { key: 'technical_review', label: 'Technical' },
+  { key: 'estimation', label: 'Estimation' },
+  { key: 'ceo_approval', label: 'CEO Approval' },
+  { key: 'client_review', label: 'Client Approval' },
+  { key: 'supply_chain', label: 'Supply Chain' }
+];
+
+const STAGE_PROGRESS_ORDER = [
+  'received',
+  'qc_review',
+  'qc_revision',
+  'technical_review',
+  'technical_revision',
+  'estimation',
+  'ceo_approval',
+  'client_review',
+  'approved',
+  'supply_chain',
+  'rejected'
+];
+
+const SLA_HOURS = {
+  qc_review: 48,
+  technical_review: 72,
+  estimation: 72,
+  ceo_approval: 24,
+  client_review: 120,
+  supply_chain: 72
+};
+
+const TERMINAL_STATUSES = ['approved', 'rejected', 'supply_chain'];
 
 const STAGE_REQUIREMENTS = {
   technical_review: {
@@ -49,14 +83,11 @@ const createStageInputState = (status) => {
       client_response: ''
     };
   }
-
-  const checklist = requirements.checklist.reduce((acc, item) => {
-    acc[item.key] = false;
-    return acc;
-  }, {});
-
   return {
-    checklist,
+    checklist: requirements.checklist.reduce((acc, item) => {
+      acc[item.key] = false;
+      return acc;
+    }, {}),
     feedback: '',
     estimated_cost: '',
     final_price: '',
@@ -64,11 +95,43 @@ const createStageInputState = (status) => {
   };
 };
 
+const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : '—');
+
+const formatDuration = (start, end) => {
+  if (!start) return '—';
+  const from = new Date(start).getTime();
+  const to = new Date(end || Date.now()).getTime();
+  if (!Number.isFinite(from) || !Number.isFinite(to)) return '—';
+  if (to < from) {
+    console.warn('Invalid duration range detected', { start, end });
+    return '—';
+  }
+  const mins = Math.floor((to - from) / (1000 * 60));
+  const days = Math.floor(mins / (60 * 24));
+  const hours = Math.floor((mins % (60 * 24)) / 60);
+  const minutes = mins % 60;
+  const chunks = [];
+  if (days) chunks.push(`${days}d`);
+  if (hours) chunks.push(`${hours}h`);
+  chunks.push(`${minutes}m`);
+  return chunks.join(' ');
+};
+
+const getSlaClass = (stage, startedAt, completedAt) => {
+  const limit = SLA_HOURS[stage];
+  if (!limit || !startedAt) return 'on-time';
+  const elapsedHours = (new Date(completedAt || Date.now()) - new Date(startedAt)) / (1000 * 60 * 60);
+  if (elapsedHours > limit) return 'overdue';
+  if (elapsedHours >= limit * 0.8) return 'near-deadline';
+  return 'on-time';
+};
+
 function ProjectDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useSelector(state => state.auth);
   const [project, setProject] = useState(null);
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sendingToQC, setSendingToQC] = useState(false);
@@ -80,36 +143,58 @@ function ProjectDetails() {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') setShowQCReviewForm(false);
     };
-    if (showQCReviewForm) {
-      document.addEventListener('keydown', handleKeyDown);
-    }
+    if (showQCReviewForm) document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [showQCReviewForm]);
 
+  const fetchAll = async () => {
+    try {
+      const [projectRes, historyRes] = await Promise.all([
+        api.get(`/projects/${id}`),
+        api.get(`/inquiries/${id}/history`)
+      ]);
+      setProject(projectRes.data);
+      setHistory(historyRes.data || []);
+    } catch (err) {
+      throw new Error(err?.response?.data?.error || 'Failed to fetch project timeline data');
+    }
+  };
+
   useEffect(() => {
-    const fetchProject = async () => {
+    const load = async () => {
       try {
-        const response = await api.get(`/projects/${id}`);
-        setProject(response.data);
+        await fetchAll();
       } catch (err) {
+        console.error('Failed to load project details:', err);
         setError('Failed to load project details');
       } finally {
         setLoading(false);
       }
     };
-    fetchProject();
+    load();
   }, [id]);
 
   useEffect(() => {
     setStageInput(createStageInputState(project?.status));
   }, [project?.status]);
 
+  const stageRecords = useMemo(() => {
+    const rows = project?.project_status || [];
+    return WORKFLOW_STAGES.reduce((acc, stage) => {
+      const row = rows
+        .filter(item => item.stage === stage.key)
+        .sort((a, b) => new Date(b.started_at) - new Date(a.started_at))[0];
+      acc[stage.key] = row || null;
+      return acc;
+    }, {});
+  }, [project?.project_status]);
+
   const handleSendToQC = async () => {
     setSendingToQC(true);
+    setError('');
     try {
-      await api.put(`/inquiries/${id}/stage`, { new_status: 'qc_review' });
-      const response = await api.get(`/projects/${id}`);
-      setProject(response.data);
+      await api.put(`/inquiries/${id}/stage`, { new_status: 'qc_review', feedback: 'Submitted by salesperson' });
+      await fetchAll();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to send to QC');
     } finally {
@@ -119,7 +204,6 @@ function ProjectDetails() {
 
   const getNextAction = () => {
     if (!user?.role || !project?.status) return null;
-
     const stageActions = {
       technical_review: { nextStatus: 'estimation', roles: ['technical'] },
       estimation: { nextStatus: 'ceo_approval', roles: ['estimation'] },
@@ -127,31 +211,26 @@ function ProjectDetails() {
       client_review: { nextStatus: 'approved', roles: ['client'] },
       approved: { nextStatus: 'supply_chain', roles: ['ceo', 'salesperson', 'client'] }
     };
-
     const action = stageActions[project.status];
     if (!action || !action.roles.includes(user.role)) return null;
     return action;
   };
 
-  const handleNext = async () => {
-    const action = getNextAction();
-    if (!action) return;
+  const moveStage = async (nextStatus) => {
     const estimatedCostValue = stageInput.estimated_cost === '' ? null : Number(stageInput.estimated_cost);
     const finalPriceValue = stageInput.final_price === '' ? null : Number(stageInput.final_price);
-
     setMovingNext(true);
     setError('');
     try {
       await api.put(`/inquiries/${id}/stage`, {
-        new_status: action.nextStatus,
+        new_status: nextStatus,
         checklist: stageInput.checklist,
         feedback: stageInput.feedback,
         estimated_cost: Number.isFinite(estimatedCostValue) ? estimatedCostValue : null,
         final_price: Number.isFinite(finalPriceValue) ? finalPriceValue : null,
         client_response: stageInput.client_response
       });
-      const response = await api.get(`/projects/${id}`);
-      setProject(response.data);
+      await fetchAll();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to move to next stage');
     } finally {
@@ -174,8 +253,12 @@ function ProjectDetails() {
   const hasClientResponse = !stageRequirements?.requireClientResponse || stageInput.client_response.trim().length > 0;
   const isNextReady = checkedAllChecklist && hasFeedback && hasValidPricing && hasClientResponse;
 
+  const currentRank = STAGE_PROGRESS_ORDER.indexOf(project?.status);
+  const quotation = project?.quotation || project?.quotations?.[0];
+  const overallTurnaroundEnd = TERMINAL_STATUSES.includes(project?.status) ? project?.updated_at : null;
+
   if (loading) return <div className="loading-spinner">Loading project...</div>;
-  if (error) return <div className="error-message">{error}</div>;
+  if (error && !project) return <div className="error-message">{error}</div>;
   if (!project) return <div>Project not found</div>;
 
   return (
@@ -184,41 +267,64 @@ function ProjectDetails() {
         <button onClick={() => navigate(-1)} className="btn-secondary">← Back</button>
         <h1>{project.inquiry_number || project.id}</h1>
         <span className={`status-badge status-${project.status}`}>{project.status?.replace('_', ' ')}</span>
-        {user?.role === 'salesperson' && project.status === 'received' && (
-          <button
-            onClick={handleSendToQC}
-            className="btn-primary"
-            disabled={sendingToQC}
-            style={{ marginLeft: '16px' }}
-          >
-            {sendingToQC ? 'Sending...' : 'Send to QC'}
-          </button>
-        )}
-        {user?.role === 'qc' && project.status === 'qc_review' && (
-          <button
-            onClick={() => setShowQCReviewForm(true)}
-            className="btn-primary"
-            style={{ marginLeft: '16px' }}
-          >
-            Review / Approve
-          </button>
-        )}
-        {nextAction && (
-          <button
-            onClick={handleNext}
-            className="btn-primary"
-            disabled={movingNext || !isNextReady}
-            style={{ marginLeft: '16px' }}
-          >
-            {movingNext ? 'Moving...' : 'Next'}
-          </button>
+      </div>
+
+      {error && <div className="error-message">{error}</div>}
+
+      <div className="detail-card workflow-wizard-card">
+        <h3>Workflow Timeline</h3>
+        <div className="wizard-timeline">
+          {WORKFLOW_STAGES.map((stage) => {
+            const stageRank = STAGE_PROGRESS_ORDER.indexOf(stage.key);
+            const stageState = stageRank < currentRank ? 'completed' : stageRank === currentRank ? 'active' : 'pending';
+            const record = stageRecords[stage.key];
+            const slaClass = getSlaClass(stage.key, record?.started_at, record?.completed_at);
+            return (
+              <div key={stage.key} className={`wizard-stage ${stageState}`}>
+                <div className={`wizard-dot ${slaClass}`} />
+                <div className="wizard-content">
+                  <div className="wizard-head">
+                    <strong>{stage.label}</strong>
+                    <span className={`wizard-state ${stageState}`}>{stageState}</span>
+                    <span className={`sla-pill ${slaClass}`}>
+                      {slaClass === 'on-time' ? 'On-time' : slaClass === 'near-deadline' ? 'Near deadline' : 'Overdue'}
+                    </span>
+                  </div>
+                  <div className="wizard-meta">
+                    <span>Start: {formatDateTime(record?.started_at)}</span>
+                    <span>End: {formatDateTime(record?.completed_at)}</span>
+                    <span>Duration: {formatDuration(record?.started_at, record?.completed_at)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="details-grid">
+        <div className="detail-card">
+          <h3>Project Information</h3>
+          <p><strong>Client:</strong> {project.client_name}</p>
+          <p><strong>Description:</strong> {project.project_description}</p>
+          <p><strong>Location:</strong> {project.location || '—'}</p>
+          <p><strong>Created:</strong> {formatDateTime(project.created_at)}</p>
+          <p><strong>Overall Turnaround:</strong> {formatDuration(project?.created_at, overallTurnaroundEnd)}</p>
+        </div>
+
+        {quotation && (
+          <div className="detail-card">
+            <h3>Quotation</h3>
+            <p><strong>Estimated Cost:</strong> ${quotation.estimated_cost?.toLocaleString() || 0}</p>
+            <p><strong>Final Price:</strong> ${quotation.final_price?.toLocaleString() || 0}</p>
+            <p><strong>Status:</strong> {quotation.status || '—'}</p>
+          </div>
         )}
       </div>
 
       {nextAction && stageRequirements && (
-        <div className="detail-card" style={{ marginBottom: '16px' }}>
-          <h3>Mandatory Completion Before Next Stage</h3>
-
+        <div className="detail-card" style={{ marginTop: '16px' }}>
+          <h3>Mandatory Checklist & Feedback</h3>
           <div className="form-group">
             <label>Essential Checklist *</label>
             <div style={{ display: 'grid', gap: '8px' }}>
@@ -286,41 +392,71 @@ function ProjectDetails() {
               rows={3}
               value={stageInput.feedback}
               onChange={(e) => setStageInput(prev => ({ ...prev, feedback: e.target.value }))}
-              placeholder="Provide required stage feedback/comments"
+              placeholder="Mandatory comments for this stage"
             />
           </div>
         </div>
       )}
 
-      <div className="details-grid">
-        <div className="detail-card">
-          <h3>Project Information</h3>
-          <p><strong>Client:</strong> {project.client_name}</p>
-          <p><strong>Description:</strong> {project.project_description}</p>
-          <p><strong>Location:</strong> {project.location}</p>
-          <p><strong>Created:</strong> {new Date(project.created_at).toLocaleDateString()}</p>
-        </div>
-
-        <div className="detail-card">
-          <h3>Workflow Stage</h3>
-          <div className="workflow-stages">
-            {['received', 'qc_review', 'technical_review', 'estimation', 'ceo_approval', 'client_review', 'approved', 'supply_chain'].map(stage => (
-              <div key={stage} className={`stage-item ${project.status === stage ? 'active' : ''}`}>
-                {stage.replace('_', ' ')}
+      <div className="detail-card" style={{ marginTop: '16px' }}>
+        <h3>Full Audit Timeline</h3>
+        {history.length === 0 ? (
+          <p>No activity yet.</p>
+        ) : (
+          <div className="activity-timeline">
+            {history.map((item) => (
+              <div key={item.id} className="activity-item">
+                <div className="activity-head">
+                  <strong>{item.action?.replace(/_/g, ' ')}</strong>
+                  <span>{formatDateTime(item.created_at)}</span>
+                </div>
+                <div className="activity-sub">
+                  {(item.actor?.name || item.actor?.email || 'System')} {item.actor?.role ? `(${item.actor.role})` : ''}
+                </div>
+                {(item.details?.feedback || item.details?.notes || item.details?.reason || item.details?.message) && (
+                  <div className="activity-note">
+                    {item.details.feedback || item.details.notes || item.details.reason || item.details.message}
+                  </div>
+                )}
               </div>
             ))}
           </div>
-        </div>
-
-        {project.quotation && (
-          <div className="detail-card">
-            <h3>Quotation</h3>
-            <p><strong>Estimated Cost:</strong> ${project.quotation.estimated_cost?.toLocaleString()}</p>
-            <p><strong>Final Price:</strong> ${project.quotation.final_price?.toLocaleString()}</p>
-            <p><strong>Status:</strong> {project.quotation.status}</p>
-          </div>
         )}
       </div>
+
+      {(user?.role === 'salesperson' && project.status === 'received') && (
+        <div className="sticky-action-bar">
+          <button onClick={handleSendToQC} className="btn-primary" disabled={sendingToQC}>
+            {sendingToQC ? 'Sending...' : 'Send to QC'}
+          </button>
+        </div>
+      )}
+
+      {(user?.role === 'qc' && project.status === 'qc_review') && (
+        <div className="sticky-action-bar">
+          <button onClick={() => setShowQCReviewForm(true)} className="btn-primary">Review / Approve</button>
+        </div>
+      )}
+
+      {nextAction && (
+        <div className="sticky-action-bar">
+          {project.status === 'ceo_approval' && user?.role === 'ceo' ? (
+            <>
+              <button onClick={() => moveStage('client_review')} className="btn-primary" disabled={movingNext || !isNextReady}>
+                {movingNext ? 'Approving...' : 'Approve & Send to Client'}
+              </button>
+              <button onClick={() => moveStage('estimation')} className="btn-danger" disabled={movingNext || !hasFeedback}>
+                {movingNext ? 'Rejecting...' : 'Reject & Return to Estimation'}
+              </button>
+            </>
+          ) : (
+            <button onClick={() => moveStage(nextAction.nextStatus)} className="btn-primary" disabled={movingNext || !isNextReady}>
+              {movingNext ? 'Moving...' : 'Next'}
+            </button>
+          )}
+        </div>
+      )}
+
       {showQCReviewForm && (
         <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="qc-review-title">
           <div className="modal-content">
@@ -329,12 +465,7 @@ function ProjectDetails() {
               titleId="qc-review-title"
               onSuccess={async () => {
                 setShowQCReviewForm(false);
-                try {
-                  const response = await api.get(`/projects/${id}`);
-                  setProject(response.data);
-                } catch (err) {
-                  setError('Review submitted, but failed to refresh project data.');
-                }
+                await fetchAll();
               }}
               onCancel={() => setShowQCReviewForm(false)}
             />

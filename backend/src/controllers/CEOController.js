@@ -1,5 +1,6 @@
 const { supabaseAdmin } = require('../config/supabase');
 const NotificationService = require('../services/NotificationService');
+const { transitionStage, toHours } = require('../services/StageTransitionService');
 
 const getPendingApprovals = async (req, res) => {
   try {
@@ -36,10 +37,25 @@ const approveQuotation = async (req, res) => {
       default: newStatus = 'ceo_approval';
     }
 
-    await supabaseAdmin
+    const { data: inquiry } = await supabaseAdmin
       .from('inquiries')
-      .update({ status: newStatus, updated_at: new Date().toISOString() })
-      .eq('id', inquiry_id);
+      .select('*')
+      .eq('id', inquiry_id)
+      .single();
+
+    if (!inquiry) {
+      return res.status(404).json({ error: 'Inquiry not found' });
+    }
+
+    await transitionStage({
+      inquiryId: inquiry_id,
+      fromStatus: inquiry.status,
+      toStatus: newStatus,
+      transitionedBy: req.user.id,
+      notes,
+      fromStartedAtFallback: inquiry.updated_at || inquiry.created_at,
+      details: { adjusted_price, decision, feedback: notes }
+    });
 
     if (adjusted_price) {
       await supabaseAdmin
@@ -53,7 +69,7 @@ const approveQuotation = async (req, res) => {
       entity_type: 'inquiry',
       entity_id: inquiry_id,
       performed_by: req.user.id,
-      details: { notes, adjusted_price }
+      details: { notes, adjusted_price, decision }
     }]);
 
     if (req.io) {
@@ -71,9 +87,34 @@ const getAnalytics = async (req, res) => {
   try {
     const { data: projects, error } = await supabaseAdmin
       .from('inquiries')
-      .select('status, created_at, quotations(final_price)');
+      .select('id, status, created_at, updated_at, quotations(final_price)');
 
     if (error) throw error;
+
+    const { data: stageLogs } = await supabaseAdmin
+      .from('project_status')
+      .select('inquiry_id, stage, started_at, completed_at, duration_hours');
+
+    const stageGroups = (stageLogs || []).reduce((acc, row) => {
+      if (!acc[row.stage]) acc[row.stage] = [];
+      const duration = row.duration_hours ?? (
+        row.completed_at && row.started_at
+          ? toHours(row.started_at, row.completed_at)
+          : null
+      );
+      if (duration !== null && Number.isFinite(duration)) acc[row.stage].push(duration);
+      return acc;
+    }, {});
+
+    const departmentAverageTimeHours = Object.entries(stageGroups).map(([stage, values]) => ({
+      stage,
+      average_hours: values.length ? Number((values.reduce((sum, v) => sum + v, 0) / values.length).toFixed(2)) : 0
+    }));
+
+    const turnaroundHours = projects
+      .filter((project) => ['approved', 'rejected', 'supply_chain'].includes(project.status))
+      .map((project) => (new Date(project.updated_at) - new Date(project.created_at)) / (1000 * 60 * 60))
+      .filter((value) => Number.isFinite(value) && value >= 0);
 
     const analytics = {
       totalProjects: projects.length,
@@ -85,7 +126,11 @@ const getAnalytics = async (req, res) => {
         .reduce((sum, p) => sum + (p.quotations?.[0]?.final_price || 0), 0),
       pipelineValue: projects
         .filter(p => !['approved', 'rejected'].includes(p.status))
-        .reduce((sum, p) => sum + (p.quotations?.[0]?.final_price || 0), 0)
+        .reduce((sum, p) => sum + (p.quotations?.[0]?.final_price || 0), 0),
+      overallTurnaroundAvgHours: turnaroundHours.length
+        ? Number((turnaroundHours.reduce((sum, v) => sum + v, 0) / turnaroundHours.length).toFixed(2))
+        : 0,
+      departmentAverageTimeHours
     };
 
     res.json(analytics);
