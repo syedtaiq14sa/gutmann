@@ -9,6 +9,10 @@ const NOTES_BY_DECISION = {
   approved: 'Approved by CEO',
   rejected: 'Rejected by CEO'
 };
+const DECISIONS = {
+  APPROVED: 'approved',
+  REJECTED: 'rejected'
+};
 
 function CEODashboard() {
   const dispatch = useDispatch();
@@ -105,7 +109,7 @@ function CEODashboard() {
         ) : (
           <div className="task-list">
             {pendingApprovals.map((project) => {
-              const inquiryId = project.inquiry_id || project.id;
+              const inquiryId = project.id;
               const firstQuotation = project.quotations?.[0];
               const isProcessing = processingId === inquiryId;
               return (
@@ -118,14 +122,14 @@ function CEODashboard() {
                   <p>Quoted Price: ${(firstQuotation?.final_price || 0).toLocaleString()}</p>
                   <div className="ceo-action-buttons">
                     <button
-                      onClick={() => handleDecision(inquiryId, 'approved')}
+                      onClick={() => handleDecision(inquiryId, DECISIONS.APPROVED)}
                       className="btn-primary btn-sm"
                       disabled={isProcessing}
                     >
                       {isProcessing ? 'Processing...' : 'Approve'}
                     </button>
                     <button
-                      onClick={() => handleDecision(inquiryId, 'rejected')}
+                      onClick={() => handleDecision(inquiryId, DECISIONS.REJECTED)}
                       className="btn-danger btn-sm"
                       disabled={isProcessing}
                     >
