@@ -31,9 +31,9 @@ const approveQuotation = async (req, res) => {
 
     let newStatus;
     switch (decision) {
-      case 'approved': newStatus = 'sales_followup'; break;
-      case 'rejected': newStatus = 'sales_followup'; break;
-      case 'revision': newStatus = 'sales_followup'; break;
+      case 'approved': newStatus = 'client_review'; break;
+      case 'rejected': newStatus = 'rejected'; break;
+      case 'revision': newStatus = 'estimation'; break;
       default: newStatus = 'ceo_approval';
     }
 

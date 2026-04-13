@@ -217,7 +217,7 @@ function ProjectDetails() {
     const stageActions = {
       technical_review: { nextStatus: 'estimation', roles: ['technical'] },
       estimation: { nextStatus: 'ceo_approval', roles: ['estimation'] },
-      ceo_approval: { nextStatus: 'sales_followup', roles: ['ceo'] },
+      ceo_approval: { nextStatus: 'client_review', roles: ['ceo'] },
       sales_followup: { nextStatus: 'client_review', roles: ['salesperson', 'ceo'] },
       client_review: { nextStatus: 'approved', roles: ['client', 'salesperson', 'ceo'] },
       approved: { nextStatus: 'supply_chain', roles: ['ceo', 'salesperson', 'client'] }
@@ -458,18 +458,18 @@ function ProjectDetails() {
           {project.status === 'ceo_approval' && user?.role === 'ceo' ? (
             <>
               <button
-                onClick={() => moveStage('sales_followup', { decision: 'approved' })}
+                onClick={() => moveStage('client_review', { decision: 'approved' })}
                 className="btn-primary"
                 disabled={movingNext || !isNextReady}
               >
-                {movingNext ? 'Approving...' : 'Approve & Send to Sales'}
+                {movingNext ? 'Approving...' : 'Approve'}
               </button>
               <button
-                onClick={() => moveStage('sales_followup', { decision: 'rejected' })}
+                onClick={() => moveStage('rejected', { decision: 'rejected' })}
                 className="btn-danger"
                 disabled={movingNext || !hasFeedback}
               >
-                {movingNext ? 'Rejecting...' : 'Reject & Send to Sales'}
+                {movingNext ? 'Rejecting...' : 'Reject'}
               </button>
             </>
           ) : project.status === 'sales_followup' && user?.role === 'salesperson' ? (
@@ -492,8 +492,8 @@ function ProjectDetails() {
               <button onClick={() => moveStage('estimation')} className="btn-primary" disabled={movingNext || !isNextReady}>
                 {movingNext ? 'Moving...' : 'Next'}
               </button>
-              <button onClick={() => moveStage('sales_followup', { decision: 'rejected' })} className="btn-danger" disabled={movingNext || !hasFeedback}>
-                Reject to Sales
+              <button onClick={() => moveStage('technical_revision', { decision: 'rejected' })} className="btn-danger" disabled={movingNext || !hasFeedback}>
+                Request Revision
               </button>
             </>
           ) : project.status === 'estimation' && user?.role === 'estimation' ? (
@@ -501,8 +501,8 @@ function ProjectDetails() {
               <button onClick={() => moveStage('ceo_approval')} className="btn-primary" disabled={movingNext || !isNextReady}>
                 {movingNext ? 'Moving...' : 'Next'}
               </button>
-              <button onClick={() => moveStage('sales_followup', { decision: 'rejected' })} className="btn-danger" disabled={movingNext || !hasFeedback}>
-                Reject to Sales
+              <button onClick={() => moveStage('technical_review', { decision: 'rejected' })} className="btn-danger" disabled={movingNext || !hasFeedback}>
+                Return to Technical
               </button>
             </>
           ) : project.status === 'client_review' && ['salesperson', 'client', 'ceo'].includes(user?.role) ? (
@@ -510,7 +510,7 @@ function ProjectDetails() {
               <button onClick={() => moveStage('approved', { client_response: stageInput.client_response || 'approved', decision: 'approved' })} className="btn-primary" disabled={movingNext || !isClientDecisionReady}>
                 {movingNext ? 'Updating...' : 'Client Approved'}
               </button>
-              <button onClick={() => moveStage('sales_followup', { client_response: stageInput.client_response || 'rejected', decision: 'rejected' })} className="btn-danger" disabled={movingNext || !isClientDecisionReady}>
+              <button onClick={() => moveStage('rejected', { client_response: stageInput.client_response || 'rejected', decision: 'rejected' })} className="btn-danger" disabled={movingNext || !isClientDecisionReady}>
                 Client Rejected
               </button>
             </>
