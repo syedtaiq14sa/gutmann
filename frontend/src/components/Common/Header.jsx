@@ -40,8 +40,8 @@ function Header({ onToggleSidebar }) {
     navigate('/login');
   };
 
-  const userLabel = user?.name || user?.email || 'User';
-  const avatarInitial = userLabel.trim().charAt(0).toUpperCase();
+  const userLabel = user?.name?.trim() || user?.email?.trim() || 'User';
+  const avatarInitial = userLabel.charAt(0).toUpperCase() || 'U';
 
   return (
     <header className="app-header">
@@ -67,7 +67,7 @@ function Header({ onToggleSidebar }) {
           <button
             className="avatar-btn"
             onClick={() => setIsUserMenuOpen(prev => !prev)}
-            aria-haspopup="menu"
+            aria-haspopup="true"
             aria-expanded={isUserMenuOpen}
             type="button"
           >
@@ -80,9 +80,6 @@ function Header({ onToggleSidebar }) {
                 <span className="user-name">{userLabel}</span>
                 <span className="user-role">{user?.role}</span>
               </div>
-              <button type="button" className="dropdown-item" onClick={() => setIsUserMenuOpen(false)}>
-                Profile
-              </button>
               <button type="button" className="dropdown-item danger" onClick={handleLogout}>
                 Logout
               </button>
