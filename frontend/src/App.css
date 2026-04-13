@@ -43,11 +43,11 @@ body {
   align-items: center;
   height: 100vh;
   font-size: 18px;
-  color: #3498db;
+  color: #e11d2e;
 }
 
 .btn-primary {
-  background-color: #3498db;
+  background-color: #e11d2e;
   color: white;
   border: none;
   padding: 10px 20px;
@@ -58,7 +58,7 @@ body {
 }
 
 .btn-primary:hover {
-  background-color: #2980b9;
+  background-color: #c81022;
 }
 
 .btn-secondary {

@@ -3,7 +3,7 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+  background: linear-gradient(135deg, #8f0815 0%, #e11d2e 100%);
 }
 
 .login-box {
@@ -64,8 +64,8 @@
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+  border-color: #e11d2e;
+  box-shadow: 0 0 0 3px rgba(225, 29, 46, 0.1);
 }
 
 .form-group .input-error,
@@ -140,5 +140,5 @@
 }
 
 .password-toggle:hover {
-  color: #3498db;
+  color: #e11d2e;
 }
