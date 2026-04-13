@@ -157,6 +157,17 @@
   margin-bottom: 16px;
 }
 
+.ceo-action-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.error-text {
+  color: #c62828;
+  margin-bottom: 12px;
+}
+
 .bottleneck-badge {
   background: #fff3e0;
   color: #e65100;

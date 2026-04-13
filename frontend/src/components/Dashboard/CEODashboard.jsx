@@ -9,10 +9,22 @@ function CEODashboard() {
   const dispatch = useDispatch();
   const { projects, loading } = useSelector(state => state.projects);
   const [analytics, setAnalytics] = useState(null);
+  const [pendingApprovals, setPendingApprovals] = useState([]);
+  const [processingId, setProcessingId] = useState(null);
+  const [actionError, setActionError] = useState('');
 
   useEffect(() => {
     dispatch(fetchDashboardData());
   }, [dispatch]);
+
+  const fetchPendingApprovals = async () => {
+    try {
+      const response = await api.get('/ceo/pending');
+      setPendingApprovals(response.data || []);
+    } catch (_err) {
+      setPendingApprovals([]);
+    }
+  };
 
   useEffect(() => {
     const fetchAnalytics = async () => {
@@ -24,7 +36,28 @@ function CEODashboard() {
       }
     };
     fetchAnalytics();
+    fetchPendingApprovals();
   }, []);
+
+  const handleDecision = async (inquiryId, decision) => {
+    try {
+      setProcessingId(inquiryId);
+      setActionError('');
+      await api.post('/ceo/approve', {
+        inquiry_id: inquiryId,
+        decision,
+        notes: decision === 'approved' ? 'Approved by CEO' : 'Rejected by CEO'
+      });
+      await Promise.all([
+        dispatch(fetchDashboardData()),
+        fetchPendingApprovals()
+      ]);
+    } catch (err) {
+      setActionError(err?.response?.data?.error || 'Failed to process CEO decision');
+    } finally {
+      setProcessingId(null);
+    }
+  };
 
   const totalProjects = projects.length;
   const totalRevenue = projects.reduce((sum, p) => sum + (p.quotation?.final_price || 0), 0);
@@ -59,6 +92,45 @@ function CEODashboard() {
         </div>
       </div>
       <StageTracker projects={projects} />
+      <div className="task-section" style={{ marginBottom: '24px' }}>
+        <h2>Pending CEO Approvals</h2>
+        {actionError && <p className="error-text">{actionError}</p>}
+        {pendingApprovals.length === 0 ? (
+          <p className="empty-state">No approvals pending ✅</p>
+        ) : (
+          <div className="task-list">
+            {pendingApprovals.map((project) => {
+              const quotation = project.quotations?.[0];
+              return (
+                <div key={project.id} className="task-card priority-high">
+                  <div className="task-header">
+                    <span>{project.inquiry_number || `Inquiry #${project.id}`}</span>
+                    <span className="priority-badge priority-high">approval needed</span>
+                  </div>
+                  <p>{project.client_name || 'Unknown Client'}</p>
+                  <p>Quoted Price: ${(quotation?.final_price || 0).toLocaleString()}</p>
+                  <div className="ceo-action-buttons">
+                    <button
+                      onClick={() => handleDecision(project.id, 'approved')}
+                      className="btn-primary btn-sm"
+                      disabled={processingId === project.id}
+                    >
+                      {processingId === project.id ? 'Processing...' : 'Approve'}
+                    </button>
+                    <button
+                      onClick={() => handleDecision(project.id, 'rejected')}
+                      className="btn-danger btn-sm"
+                      disabled={processingId === project.id}
+                    >
+                      {processingId === project.id ? 'Processing...' : 'Reject'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
       <div className="stage-tracker">
         <h2>Department Avg Processing Time</h2>
         {!analytics?.departmentAverageTimeHours?.length ? (
