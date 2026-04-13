@@ -42,6 +42,7 @@ const PROJECT_VIEW_STORAGE_KEY = 'project-details:last-open';
 
 const getStageDraftStorageKey = (id, status) => `project-stage-draft:${id}:${status || 'unknown'}`;
 const getQcModalStorageKey = (id) => `project-qc-modal-open:${id}`;
+const getWizardUiStorageKey = (id) => `project-wizard-ui:${id}`;
 
 const STAGE_REQUIREMENTS = {
   technical_review: {
@@ -83,6 +84,57 @@ const STAGE_REQUIREMENTS = {
     requireClientResponse: true
   }
 };
+
+const STAGE_SUB_STEPS = {
+  qc_review: [
+    { key: 'general', title: 'General Settings', description: 'Configure baseline validation preferences and intake defaults.' },
+    { key: 'roster', title: 'User Roster', description: 'Confirm owner, reviewers, and QC routing for this stage.' },
+    { key: 'stage_form', title: 'QC Review', description: 'Review current stage details and complete required actions.' },
+    { key: 'finalize', title: 'Finalize', description: 'Confirm readiness to move this stage forward.' }
+  ],
+  technical_review: [
+    { key: 'general', title: 'General Settings', description: 'Define technical review scope and expected checks.' },
+    { key: 'roster', title: 'User Roster', description: 'Assign accountable technical reviewers and escalation contacts.' },
+    { key: 'stage_form', title: 'Technical Review', description: 'Complete the required checklist and stage comments.' },
+    { key: 'finalize', title: 'Finalize', description: 'Validate completion before advancing the workflow.' }
+  ],
+  estimation: [
+    { key: 'general', title: 'General Settings', description: 'Set estimation constraints and pricing assumptions.' },
+    { key: 'roster', title: 'User Roster', description: 'Confirm the owners for estimation and commercial review.' },
+    { key: 'stage_form', title: 'Estimation', description: 'Provide pricing, checklist updates, and review notes.' },
+    { key: 'finalize', title: 'Finalize', description: 'Review values and prepare this stage for approval.' }
+  ],
+  ceo_approval: [
+    { key: 'general', title: 'General Settings', description: 'Review governance preferences and approval expectations.' },
+    { key: 'roster', title: 'User Roster', description: 'Confirm executive and stakeholder routing for decisioning.' },
+    { key: 'stage_form', title: 'CEO Approval', description: 'Record decisions, checklist completion, and comments.' },
+    { key: 'finalize', title: 'Finalize', description: 'Lock final review notes before proceeding.' }
+  ],
+  sales_followup: [
+    { key: 'general', title: 'General Settings', description: 'Prepare follow-up approach and communication settings.' },
+    { key: 'roster', title: 'User Roster', description: 'Assign account and follow-up responsibilities.' },
+    { key: 'stage_form', title: 'Sales Follow-up', description: 'Track follow-up outcomes and mandatory notes.' },
+    { key: 'finalize', title: 'Finalize', description: 'Confirm next workflow direction for client review.' }
+  ],
+  client_review: [
+    { key: 'general', title: 'General Settings', description: 'Configure review window and expected client outcomes.' },
+    { key: 'roster', title: 'User Roster', description: 'Confirm client-facing and internal approver contacts.' },
+    { key: 'stage_form', title: 'Client Review', description: 'Capture client response and required commentary.' },
+    { key: 'finalize', title: 'Finalize', description: 'Verify all client review data before completion.' }
+  ],
+  supply_chain: [
+    { key: 'general', title: 'General Settings', description: 'Define implementation handoff preferences for execution.' },
+    { key: 'roster', title: 'User Roster', description: 'Confirm supply chain owners and receiving teams.' },
+    { key: 'stage_form', title: 'Supply Chain', description: 'Review handoff details and stage completion notes.' },
+    { key: 'finalize', title: 'Finalize', description: 'Finalize integration handoff for operational delivery.' }
+  ]
+};
+
+const createSubStepIndexState = () =>
+  WORKFLOW_STAGES.reduce((acc, stage) => {
+    acc[stage.key] = 0;
+    return acc;
+  }, {});
 
 const createStageInputState = (status) => {
   const requirements = STAGE_REQUIREMENTS[status];
@@ -153,6 +205,8 @@ function ProjectDetails() {
   const [showQCReviewForm, setShowQCReviewForm] = useState(false);
   const [stageInput, setStageInput] = useState(createStageInputState());
   const [validationErrors, setValidationErrors] = useState({});
+  const [selectedStageKey, setSelectedStageKey] = useState('');
+  const [selectedSubStepByStage, setSelectedSubStepByStage] = useState(createSubStepIndexState());
   const checklistRef = useRef(null);
   const estimatedCostRef = useRef(null);
   const finalPriceRef = useRef(null);
@@ -234,6 +288,46 @@ function ProjectDetails() {
     if (!id || !project?.status) return;
     localStorage.setItem(getStageDraftStorageKey(id, project.status), JSON.stringify(stageInput));
   }, [id, project?.status, stageInput]);
+
+  useEffect(() => {
+    if (!id || !project?.status) return;
+    const defaults = createSubStepIndexState();
+    const fallbackStage = WORKFLOW_STAGES.find(stage => stage.key === project.status)?.key || WORKFLOW_STAGES[0].key;
+    try {
+      const saved = localStorage.getItem(getWizardUiStorageKey(id));
+      if (!saved) {
+        setSelectedStageKey(fallbackStage);
+        setSelectedSubStepByStage(defaults);
+        return;
+      }
+      const parsed = JSON.parse(saved);
+      const nextStage = WORKFLOW_STAGES.some(stage => stage.key === parsed?.selectedStageKey)
+        ? parsed.selectedStageKey
+        : fallbackStage;
+      const hydratedSubSteps = { ...defaults };
+      Object.keys(hydratedSubSteps).forEach((stageKey) => {
+        const maxIndex = (STAGE_SUB_STEPS[stageKey]?.length || 1) - 1;
+        const requested = Number(parsed?.selectedSubStepByStage?.[stageKey]);
+        hydratedSubSteps[stageKey] = Number.isFinite(requested)
+          ? Math.min(Math.max(requested, 0), Math.max(maxIndex, 0))
+          : 0;
+      });
+      setSelectedStageKey(nextStage);
+      setSelectedSubStepByStage(hydratedSubSteps);
+    } catch (err) {
+      console.warn('Failed to restore wizard UI state:', err);
+      setSelectedStageKey(fallbackStage);
+      setSelectedSubStepByStage(defaults);
+    }
+  }, [id, project?.status]);
+
+  useEffect(() => {
+    if (!id || !selectedStageKey) return;
+    localStorage.setItem(getWizardUiStorageKey(id), JSON.stringify({
+      selectedStageKey,
+      selectedSubStepByStage
+    }));
+  }, [id, selectedStageKey, selectedSubStepByStage]);
 
   useEffect(() => {
     if (!id) return;
@@ -391,8 +485,40 @@ function ProjectDetails() {
   const canActOnStage = Boolean(nextAction || (project?.status === 'ceo_approval' && user?.role === 'ceo'));
 
   const currentRank = STAGE_PROGRESS_ORDER.indexOf(project?.status);
+  const viewedStageKey = selectedStageKey || project?.status || WORKFLOW_STAGES[0].key;
+  const viewedStageRank = STAGE_PROGRESS_ORDER.indexOf(viewedStageKey);
+  const viewedStageState = viewedStageRank < currentRank ? 'completed' : viewedStageRank === currentRank ? 'active' : 'pending';
+  const viewedSubSteps = STAGE_SUB_STEPS[viewedStageKey] || [];
+  const selectedSubStepIndex = Math.min(
+    Math.max(selectedSubStepByStage[viewedStageKey] ?? 0, 0),
+    Math.max(viewedSubSteps.length - 1, 0)
+  );
+  const selectedSubStep = viewedSubSteps[selectedSubStepIndex] || null;
+  const stageNumber = Math.max(WORKFLOW_STAGES.findIndex(stage => stage.key === viewedStageKey) + 1, 1);
+  const isViewingActiveWorkflowStage = viewedStageKey === project?.status;
   const quotation = project?.quotation || project?.quotations?.[0];
   const overallTurnaroundEnd = TERMINAL_STATUSES.includes(project?.status) ? project?.updated_at : null;
+
+  const updateSubStepIndex = (stageKey, nextIndex) => {
+    setSelectedSubStepByStage((prev) => {
+      const maxIndex = (STAGE_SUB_STEPS[stageKey]?.length || 1) - 1;
+      const clamped = Math.min(Math.max(nextIndex, 0), Math.max(maxIndex, 0));
+      if (prev[stageKey] === clamped) return prev;
+      return { ...prev, [stageKey]: clamped };
+    });
+  };
+
+  const handleStageSelect = (stageKey) => {
+    setSelectedStageKey(stageKey);
+    if (typeof selectedSubStepByStage[stageKey] !== 'number') {
+      updateSubStepIndex(stageKey, 0);
+    }
+  };
+
+  const handleSubStepSelect = (index) => {
+    if (viewedStageState === 'pending') return;
+    updateSubStepIndex(viewedStageKey, index);
+  };
 
   if (loading) return <div className="loading-spinner">Loading project...</div>;
   if (error && !project) return <div className="error-message">{error}</div>;
@@ -408,171 +534,283 @@ function ProjectDetails() {
 
       {error && <div className="error-message">{error}</div>}
 
-      <div className="detail-card workflow-wizard-card">
-        <h3>Workflow Timeline</h3>
-        <div className="wizard-timeline">
-          {WORKFLOW_STAGES.map((stage) => {
+      <div className="workflow-wizard-shell">
+        <div className="wizard-main-stepper" role="navigation" aria-label="Workflow stages">
+          {WORKFLOW_STAGES.map((stage, index) => {
             const stageRank = STAGE_PROGRESS_ORDER.indexOf(stage.key);
             const stageState = stageRank < currentRank ? 'completed' : stageRank === currentRank ? 'active' : 'pending';
-            const record = stageRecords[stage.key];
-            const slaClass = getSlaClass(stage.key, record?.started_at, record?.completed_at);
+            const isSelected = viewedStageKey === stage.key;
             return (
-              <div key={stage.key} className={`wizard-stage ${stageState}`}>
-                <div className={`wizard-dot ${slaClass}`} />
-                <div className="wizard-content">
-                  <div className="wizard-head">
-                    <strong>{stage.label}</strong>
-                    <span className={`wizard-state ${stageState}`}>{stageState}</span>
-                    <span className={`sla-pill ${slaClass}`}>
-                      {slaClass === 'on-time' ? 'On-time' : slaClass === 'near-deadline' ? 'Near deadline' : 'Overdue'}
-                    </span>
-                  </div>
-                  <div className="wizard-meta">
-                    <span>Start: {formatDateTime(record?.started_at)}</span>
-                    <span>End: {formatDateTime(record?.completed_at)}</span>
-                    <span>Duration: {formatDuration(record?.started_at, record?.completed_at)}</span>
-                  </div>
+              <button
+                type="button"
+                key={stage.key}
+                className={`wizard-main-step ${stageState} ${isSelected ? 'selected' : ''}`}
+                onClick={() => handleStageSelect(stage.key)}
+              >
+                <div className="wizard-main-step-header">
+                  <span className="wizard-main-step-count">{stageState === 'completed' ? '✓' : index + 1}</span>
+                  <span className="wizard-main-step-title">{stage.label}</span>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="details-grid">
-        <div className="detail-card">
-          <h3>Project Information</h3>
-          <p><strong>Client:</strong> {project.client_name}</p>
-          <p><strong>Description:</strong> {project.project_description}</p>
-          <p><strong>Location:</strong> {project.location || '—'}</p>
-          <p><strong>Created:</strong> {formatDateTime(project.created_at)}</p>
-          <p><strong>Overall Turnaround:</strong> {formatDuration(project?.created_at, overallTurnaroundEnd)}</p>
-        </div>
-
-        {quotation && (
-          <div className="detail-card">
-            <h3>Quotation</h3>
-            <p><strong>Estimated Cost:</strong> ${quotation.estimated_cost?.toLocaleString() || 0}</p>
-            <p><strong>Final Price:</strong> ${quotation.final_price?.toLocaleString() || 0}</p>
-            <p><strong>Status:</strong> {quotation.status || '—'}</p>
-          </div>
-        )}
-      </div>
-
-      {canActOnStage && stageRequirements && (
-        <div className="detail-card" style={{ marginTop: '16px' }}>
-                <h3>Mandatory Checklist & Feedback</h3>
-                {Object.keys(validationErrors).length > 0 && (
-                  <div className="error-message" role="alert">
-                    Please fix the highlighted fields before continuing.
+                <div className="wizard-main-step-subtext">
+                  {stageState === 'completed' ? 'Completed' : stageState === 'active' ? 'Current' : 'Pending'}
+                </div>
+                {stageState === 'active' && (
+                  <div className="wizard-main-step-indicator" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
                   </div>
                 )}
-          <div className="form-group">
-            <label htmlFor="project-checklist-group">Essential Checklist *</label>
-            <div
-              id="project-checklist-group"
-              ref={checklistRef}
-              tabIndex={-1}
-              className={validationErrors.checklist ? 'field-error-group' : ''}
-              style={{ display: 'grid', gap: '8px' }}
-            >
-              {stageRequirements.checklist.map((item) => (
-                <label key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <input
-                    type="checkbox"
-                    checked={!!stageInput.checklist[item.key]}
-                    onChange={(e) => {
-                      setStageInput(prev => ({
-                        ...prev,
-                        checklist: { ...prev.checklist, [item.key]: e.target.checked }
-                      }));
-                      clearValidationError('checklist');
-                    }}
-                  />
-                  <span>{item.label}</span>
-                </label>
-              ))}
-            </div>
-            {validationErrors.checklist && <div className="field-error-text">{validationErrors.checklist}</div>}
-          </div>
-
-          {stageRequirements.requirePricing && (
-            <div className="form-row">
-              <div className="form-group">
-                <label>Estimated Cost *</label>
-                <input
-                  ref={estimatedCostRef}
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  className={validationErrors.estimated_cost ? 'input-error' : ''}
-                  value={stageInput.estimated_cost}
-                  onChange={(e) => {
-                    setStageInput(prev => ({ ...prev, estimated_cost: e.target.value }));
-                    clearValidationError('estimated_cost');
-                  }}
-                  placeholder="Enter estimated cost"
-                />
-                {validationErrors.estimated_cost && <div className="field-error-text">{validationErrors.estimated_cost}</div>}
-              </div>
-              <div className="form-group">
-                <label>Final Price *</label>
-                <input
-                  ref={finalPriceRef}
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  className={validationErrors.final_price ? 'input-error' : ''}
-                  value={stageInput.final_price}
-                  onChange={(e) => {
-                    setStageInput(prev => ({ ...prev, final_price: e.target.value }));
-                    clearValidationError('final_price');
-                  }}
-                  placeholder="Enter final price"
-                />
-                {validationErrors.final_price && <div className="field-error-text">{validationErrors.final_price}</div>}
-              </div>
-            </div>
-          )}
-
-          {stageRequirements.requireClientResponse && (
-            <div className="form-group">
-                <label>Client Response *</label>
-                <select
-                  ref={clientResponseRef}
-                  className={validationErrors.client_response ? 'input-error' : ''}
-                  value={stageInput.client_response}
-                  onChange={(e) => {
-                    setStageInput(prev => ({ ...prev, client_response: e.target.value }));
-                    clearValidationError('client_response');
-                  }}
-                >
-                  <option value="">Select response</option>
-                  <option value="approved">Approved</option>
-                  <option value="rejected">Rejected</option>
-                  <option value="conditional_approval">Conditional approval</option>
-                </select>
-                {validationErrors.client_response && <div className="field-error-text">{validationErrors.client_response}</div>}
-              </div>
-            )}
-
-          <div className="form-group">
-            <label>Feedback / Comments *</label>
-            <textarea
-              ref={feedbackRef}
-              rows={3}
-              className={validationErrors.feedback ? 'input-error' : ''}
-              value={stageInput.feedback}
-              onChange={(e) => {
-                setStageInput(prev => ({ ...prev, feedback: e.target.value }));
-                clearValidationError('feedback');
-              }}
-              placeholder="Mandatory comments for this stage"
-            />
-            {validationErrors.feedback && <div className="field-error-text">{validationErrors.feedback}</div>}
-          </div>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            className={`wizard-main-step wizard-main-step-cta ${TERMINAL_STATUSES.includes(project?.status) ? 'completed' : ''}`}
+            onClick={() => handleStageSelect(WORKFLOW_STAGES[WORKFLOW_STAGES.length - 1].key)}
+          >
+            Complete Integration
+          </button>
         </div>
-      )}
+
+        <div className="wizard-content-layout">
+          <aside className="wizard-substep-panel" role="navigation" aria-label="Sub-steps">
+            <h3>{stageNumber}. Configure {WORKFLOW_STAGES.find(stage => stage.key === viewedStageKey)?.label || 'Stage'}</h3>
+            <div className="wizard-substep-list">
+              {viewedSubSteps.map((subStep, index) => {
+                const subState = viewedStageState === 'completed'
+                  ? 'completed'
+                  : viewedStageState === 'pending'
+                    ? 'pending'
+                    : index < selectedSubStepIndex
+                      ? 'completed'
+                      : index === selectedSubStepIndex
+                        ? 'active'
+                        : 'pending';
+                return (
+                  <button
+                    key={subStep.key}
+                    type="button"
+                    className={`wizard-substep-item ${subState}`}
+                    onClick={() => handleSubStepSelect(index)}
+                    disabled={viewedStageState === 'pending'}
+                  >
+                    <span className="wizard-substep-marker">{subState === 'completed' ? '✓' : index + 1}</span>
+                    <span className="wizard-substep-copy">
+                      <strong>{subStep.title}</strong>
+                      <small>{subStep.description}</small>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </aside>
+
+          <section className="wizard-main-panel">
+            <div className="wizard-main-panel-header">
+              <div>
+                <h2>{stageNumber}.{selectedSubStepIndex + 1} {selectedSubStep?.title || 'Stage Overview'}</h2>
+                <p>{selectedSubStep?.description || 'Review and configure this workflow stage.'}</p>
+              </div>
+              <button type="button" className="btn-secondary wizard-save-close" onClick={() => navigate('/dashboard')}>
+                Save Progress &amp; Close
+              </button>
+            </div>
+
+            <div className="wizard-panel-card">
+              {isViewingActiveWorkflowStage && selectedSubStep?.key === 'stage_form' && canActOnStage && stageRequirements ? (
+                <>
+                  <h3>Mandatory Checklist &amp; Feedback</h3>
+                  {Object.keys(validationErrors).length > 0 && (
+                    <div className="error-message" role="alert">
+                      Please fix the highlighted fields before continuing.
+                    </div>
+                  )}
+                  <div className="form-group">
+                    <label htmlFor="project-checklist-group">Essential Checklist *</label>
+                    <div
+                      id="project-checklist-group"
+                      ref={checklistRef}
+                      tabIndex={-1}
+                      className={validationErrors.checklist ? 'field-error-group wizard-toggle-list' : 'wizard-toggle-list'}
+                    >
+                      {stageRequirements.checklist.map((item) => (
+                        <label key={item.key} className="wizard-toggle-item">
+                          <span>{item.label}</span>
+                          <span className="wizard-switch">
+                            <input
+                              type="checkbox"
+                              checked={!!stageInput.checklist[item.key]}
+                              onChange={(e) => {
+                                setStageInput(prev => ({
+                                  ...prev,
+                                  checklist: { ...prev.checklist, [item.key]: e.target.checked }
+                                }));
+                                clearValidationError('checklist');
+                              }}
+                            />
+                            <span className="wizard-switch-slider" />
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    {validationErrors.checklist && <div className="field-error-text">{validationErrors.checklist}</div>}
+                  </div>
+
+                  {stageRequirements.requirePricing && (
+                    <div className="form-row wizard-form-grid">
+                      <div className="form-group">
+                        <label>Estimated Cost *</label>
+                        <input
+                          ref={estimatedCostRef}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className={validationErrors.estimated_cost ? 'input-error' : ''}
+                          value={stageInput.estimated_cost}
+                          onChange={(e) => {
+                            setStageInput(prev => ({ ...prev, estimated_cost: e.target.value }));
+                            clearValidationError('estimated_cost');
+                          }}
+                          placeholder="Enter estimated cost"
+                        />
+                        {validationErrors.estimated_cost && <div className="field-error-text">{validationErrors.estimated_cost}</div>}
+                      </div>
+                      <div className="form-group">
+                        <label>Final Price *</label>
+                        <input
+                          ref={finalPriceRef}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className={validationErrors.final_price ? 'input-error' : ''}
+                          value={stageInput.final_price}
+                          onChange={(e) => {
+                            setStageInput(prev => ({ ...prev, final_price: e.target.value }));
+                            clearValidationError('final_price');
+                          }}
+                          placeholder="Enter final price"
+                        />
+                        {validationErrors.final_price && <div className="field-error-text">{validationErrors.final_price}</div>}
+                      </div>
+                    </div>
+                  )}
+
+                  {stageRequirements.requireClientResponse && (
+                    <div className="form-group">
+                      <label>Client Response *</label>
+                      <select
+                        ref={clientResponseRef}
+                        className={validationErrors.client_response ? 'input-error' : ''}
+                        value={stageInput.client_response}
+                        onChange={(e) => {
+                          setStageInput(prev => ({ ...prev, client_response: e.target.value }));
+                          clearValidationError('client_response');
+                        }}
+                      >
+                        <option value="">Select response</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="conditional_approval">Conditional approval</option>
+                      </select>
+                      {validationErrors.client_response && <div className="field-error-text">{validationErrors.client_response}</div>}
+                    </div>
+                  )}
+
+                  <div className="form-group">
+                    <label>Feedback / Comments *</label>
+                    <textarea
+                      ref={feedbackRef}
+                      rows={3}
+                      className={validationErrors.feedback ? 'input-error' : ''}
+                      value={stageInput.feedback}
+                      onChange={(e) => {
+                        setStageInput(prev => ({ ...prev, feedback: e.target.value }));
+                        clearValidationError('feedback');
+                      }}
+                      placeholder="Mandatory comments for this stage"
+                    />
+                    {validationErrors.feedback && <div className="field-error-text">{validationErrors.feedback}</div>}
+                  </div>
+                </>
+              ) : (
+                <div className="wizard-stage-summary">
+                  <div className="wizard-summary-grid">
+                    <div className="wizard-summary-item">
+                      <span>Client</span>
+                      <strong>{project.client_name}</strong>
+                    </div>
+                    <div className="wizard-summary-item">
+                      <span>Location</span>
+                      <strong>{project.location || '—'}</strong>
+                    </div>
+                    <div className="wizard-summary-item">
+                      <span>Created</span>
+                      <strong>{formatDateTime(project.created_at)}</strong>
+                    </div>
+                    <div className="wizard-summary-item">
+                      <span>Overall Turnaround</span>
+                      <strong>{formatDuration(project?.created_at, overallTurnaroundEnd)}</strong>
+                    </div>
+                  </div>
+                  {quotation && (
+                    <div className="wizard-summary-grid secondary">
+                      <div className="wizard-summary-item">
+                        <span>Estimated Cost</span>
+                        <strong>${quotation.estimated_cost?.toLocaleString() || 0}</strong>
+                      </div>
+                      <div className="wizard-summary-item">
+                        <span>Final Price</span>
+                        <strong>${quotation.final_price?.toLocaleString() || 0}</strong>
+                      </div>
+                      <div className="wizard-summary-item">
+                        <span>Quotation Status</span>
+                        <strong>{quotation.status || '—'}</strong>
+                      </div>
+                    </div>
+                  )}
+                  <div className="wizard-stage-metrics">
+                    <h4>Stage Timeline</h4>
+                    {(() => {
+                      const record = stageRecords[viewedStageKey];
+                      const slaClass = getSlaClass(viewedStageKey, record?.started_at, record?.completed_at);
+                      return (
+                        <div className="wizard-meta">
+                          <span>Start: {formatDateTime(record?.started_at)}</span>
+                          <span>End: {formatDateTime(record?.completed_at)}</span>
+                          <span>Duration: {formatDuration(record?.started_at, record?.completed_at)}</span>
+                          <span className={`sla-pill ${slaClass}`}>
+                            {slaClass === 'on-time' ? 'On-time' : slaClass === 'near-deadline' ? 'Near deadline' : 'Overdue'}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="wizard-substep-nav">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => handleSubStepSelect(selectedSubStepIndex - 1)}
+                disabled={viewedStageState === 'pending' || selectedSubStepIndex <= 0}
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => handleSubStepSelect(selectedSubStepIndex + 1)}
+                disabled={viewedStageState === 'pending' || selectedSubStepIndex >= viewedSubSteps.length - 1}
+              >
+                Next
+              </button>
+            </div>
+          </section>
+        </div>
+      </div>
 
       <div className="detail-card" style={{ marginTop: '16px' }}>
         <h3>Full Audit Timeline</h3>
