@@ -41,7 +41,7 @@ const submitReview = async (req, res) => {
 
     if (reviewError) throw reviewError;
 
-    const newStatus = decision === 'approved' ? 'technical_review' : 'sales_followup';
+    const newStatus = decision === 'approved' ? 'technical_review' : 'qc_revision';
 
     const { data: inquiry } = await supabaseAdmin
       .from('inquiries')
