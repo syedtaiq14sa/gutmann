@@ -40,13 +40,17 @@ function CEODashboard() {
   }, []);
 
   const handleDecision = async (inquiryId, decision) => {
+    const notesByDecision = {
+      approved: 'Approved by CEO',
+      rejected: 'Rejected by CEO'
+    };
     try {
       setProcessingId(inquiryId);
       setActionError('');
       await api.post('/ceo/approve', {
         inquiry_id: inquiryId,
         decision,
-        notes: decision === 'approved' ? 'Approved by CEO' : 'Rejected by CEO'
+        notes: notesByDecision[decision] || `CEO decision: ${decision}`
       });
       await Promise.all([
         dispatch(fetchDashboardData()),
@@ -101,6 +105,7 @@ function CEODashboard() {
           <div className="task-list">
             {pendingApprovals.map((project) => {
               const quotation = project.quotations?.[0];
+              const isProcessing = processingId === project.id;
               return (
                 <div key={project.id} className="task-card priority-high">
                   <div className="task-header">
@@ -113,16 +118,16 @@ function CEODashboard() {
                     <button
                       onClick={() => handleDecision(project.id, 'approved')}
                       className="btn-primary btn-sm"
-                      disabled={processingId === project.id}
+                      disabled={isProcessing}
                     >
-                      {processingId === project.id ? 'Processing...' : 'Approve'}
+                      {isProcessing ? 'Processing...' : 'Approve'}
                     </button>
                     <button
                       onClick={() => handleDecision(project.id, 'rejected')}
                       className="btn-danger btn-sm"
-                      disabled={processingId === project.id}
+                      disabled={isProcessing}
                     >
-                      {processingId === project.id ? 'Processing...' : 'Reject'}
+                      {isProcessing ? 'Processing...' : 'Reject'}
                     </button>
                   </div>
                 </div>
