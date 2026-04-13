@@ -19,7 +19,7 @@ function CEODashboard() {
   const { projects, loading } = useSelector(state => state.projects);
   const [analytics, setAnalytics] = useState(null);
   const [pendingApprovals, setPendingApprovals] = useState([]);
-  const [processingId, setProcessingId] = useState(null);
+  const [processingById, setProcessingById] = useState({});
   const [actionError, setActionError] = useState('');
 
   useEffect(() => {
@@ -50,7 +50,7 @@ function CEODashboard() {
 
   const handleDecision = async (inquiryId, decision) => {
     try {
-      setProcessingId(inquiryId);
+      setProcessingById((prev) => ({ ...prev, [inquiryId]: true }));
       setActionError('');
       await api.post('/ceo/approve', {
         inquiry_id: inquiryId,
@@ -64,7 +64,11 @@ function CEODashboard() {
     } catch (err) {
       setActionError(err?.response?.data?.error || 'Failed to process CEO decision');
     } finally {
-      setProcessingId(null);
+      setProcessingById((prev) => {
+        const updated = { ...prev };
+        delete updated[inquiryId];
+        return updated;
+      });
     }
   };
 
@@ -111,7 +115,8 @@ function CEODashboard() {
             {pendingApprovals.map((project) => {
               const inquiryId = project.id;
               const firstQuotation = project.quotations?.[0];
-              const isProcessing = processingId === inquiryId;
+              const isProcessing = Boolean(processingById[inquiryId]);
+              const actionLabel = isProcessing ? 'Processing...' : null;
               return (
                 <div key={inquiryId} className="task-card priority-high">
                   <div className="task-header">
@@ -126,14 +131,14 @@ function CEODashboard() {
                       className="btn-primary btn-sm"
                       disabled={isProcessing}
                     >
-                      {isProcessing ? 'Processing...' : 'Approve'}
+                      {actionLabel || 'Approve'}
                     </button>
                     <button
                       onClick={() => handleDecision(inquiryId, DECISIONS.REJECTED)}
                       className="btn-danger btn-sm"
                       disabled={isProcessing}
                     >
-                      {isProcessing ? 'Processing...' : 'Reject'}
+                      {actionLabel || 'Reject'}
                     </button>
                   </div>
                 </div>
