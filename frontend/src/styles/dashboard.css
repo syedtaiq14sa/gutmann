@@ -1078,16 +1078,14 @@
   }
 
   .wizard-main-stepper {
+    display: grid;
+    grid-template-columns: 1fr;
     width: 100%;
   }
 
   .wizard-main-step {
-    flex: 1 1 100%;
     min-width: 0;
-    border-right: 1px solid #e5e7eb;
-  }
-
-  .wizard-main-step:last-child {
+    width: 100%;
     border-right: none;
   }
 

@@ -5,17 +5,16 @@ import api from '../services/api';
 import QCReviewForm from '../components/Forms/QCReviewForm';
 
 const WORKFLOW_STAGES = [
-  { key: 'qc_review', label: 'QC' },
-  { key: 'technical_review', label: 'Technical' },
-  { key: 'estimation', label: 'Estimation' },
-  { key: 'ceo_approval', label: 'CEO Approval' },
-  { key: 'sales_followup', label: 'Sales Follow-up' },
-  { key: 'client_review', label: 'Client Approval' },
-  { key: 'supply_chain', label: 'Supply Chain' }
+  { key: 'qc_review', label: 'QC', topNav: true },
+  { key: 'technical_review', label: 'Technical', topNav: true, departmentChecklist: true },
+  { key: 'estimation', label: 'Estimation', topNav: true, departmentChecklist: true },
+  { key: 'ceo_approval', label: 'CEO Approval', topNav: true, departmentChecklist: true },
+  { key: 'sales_followup', label: 'Sales Follow-up', departmentChecklist: true, departmentTitle: 'Feedback to Sales' },
+  { key: 'client_review', label: 'Client Approval', departmentChecklist: true },
+  { key: 'supply_chain', label: 'Supply Chain', topNav: true }
 ];
 
-const TOP_NAV_STAGE_KEYS = ['qc_review', 'technical_review', 'estimation', 'ceo_approval', 'supply_chain'];
-const TOP_NAV_STAGES = WORKFLOW_STAGES.filter(stage => TOP_NAV_STAGE_KEYS.includes(stage.key));
+const TOP_NAV_STAGES = WORKFLOW_STAGES.filter(stage => stage.topNav);
 
 const STAGE_PROGRESS_ORDER = [
   'received',
@@ -90,8 +89,8 @@ const STAGE_REQUIREMENTS = {
 };
 
 const SHARED_STAGE_SUB_STEPS = [
-  { key: 'client_approval', title: 'Client Approval', description: 'Capture the latest customer-facing expectations for this stage.' },
-  { key: 'feedback_to_sales', title: 'Feedback to Sales', description: 'Share aligned review notes and coordination details with Sales.' },
+  { key: 'stakeholder_alignment', title: 'Client Approval', description: 'Capture the latest customer-facing expectations for this stage.' },
+  { key: 'feedback_sync', title: 'Feedback to Sales', description: 'Share aligned review notes and coordination details with Sales.' },
   { key: 'stage_form', title: 'Review Submission', description: 'Complete checklist and submit final review inputs for this stage.' }
 ];
 
@@ -100,13 +99,17 @@ const STAGE_SUB_STEPS = WORKFLOW_STAGES.reduce((acc, stage) => {
   return acc;
 }, {});
 
-const DEPARTMENT_CHECKLIST_CARDS = [
-  { key: 'technical_review', title: 'Technical' },
-  { key: 'estimation', title: 'Estimation' },
-  { key: 'ceo_approval', title: 'CEO Approval' },
-  { key: 'sales_followup', title: 'Feedback to Sales' },
-  { key: 'client_review', title: 'Client Approval' }
-].filter(({ key }) => STAGE_REQUIREMENTS[key]);
+const DEPARTMENT_CHECKLIST_CARDS = WORKFLOW_STAGES.reduce((cards, stage) => {
+  if (!stage.departmentChecklist) return cards;
+  if (!STAGE_REQUIREMENTS[stage.key]) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(`[ProjectDetails] Missing stage requirements for department card '${stage.key}'`);
+    }
+    return cards;
+  }
+  cards.push({ key: stage.key, title: stage.departmentTitle || stage.label });
+  return cards;
+}, []);
 
 function GutmannLogo({ compact = false }) {
   return (
@@ -489,6 +492,7 @@ function ProjectDetails() {
   const currentRank = STAGE_PROGRESS_ORDER.indexOf(project?.status);
   const topNavRanks = TOP_NAV_STAGES.map(stage => STAGE_PROGRESS_ORDER.indexOf(stage.key));
   const getTopNavStageState = (stage, index) => {
+    // Rejected projects intentionally stop before supply-chain handoff in this UI.
     if (project?.status === 'rejected') {
       return stage.key === 'supply_chain' ? 'pending' : 'completed';
     }
@@ -659,6 +663,9 @@ function ProjectDetails() {
                         ), 0);
                         const isDepartmentComplete = requirements.checklist.length > 0
                           && completedCount === requirements.checklist.length;
+                        let departmentStatusLabel = 'Pending';
+                        if (isCurrentDepartment) departmentStatusLabel = 'Current Stage';
+                        else if (isDepartmentComplete) departmentStatusLabel = 'Completed';
                         return (
                           <section
                             key={department.key}
@@ -668,7 +675,7 @@ function ProjectDetails() {
                           >
                             <header>
                               <h4>{department.title}</h4>
-                              <span>{isCurrentDepartment ? 'Current Stage' : isDepartmentComplete ? 'Completed' : 'Pending'}</span>
+                              <span>{departmentStatusLabel}</span>
                             </header>
                             <div className="wizard-toggle-list">
                               {requirements.checklist.map((item) => {
