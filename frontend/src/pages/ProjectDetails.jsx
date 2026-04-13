@@ -14,6 +14,14 @@ const WORKFLOW_STAGES = [
   { key: 'supply_chain', label: 'Supply Chain' }
 ];
 
+const TOP_NAV_STAGES = [
+  { key: 'qc_review', label: 'QC' },
+  { key: 'technical_review', label: 'Technical' },
+  { key: 'estimation', label: 'Estimation' },
+  { key: 'ceo_approval', label: 'CEO Approval' },
+  { key: 'supply_chain', label: 'Supply Chain' }
+];
+
 const STAGE_PROGRESS_ORDER = [
   'received',
   'qc_review',
@@ -88,48 +96,61 @@ const STAGE_REQUIREMENTS = {
 
 const STAGE_SUB_STEPS = {
   qc_review: [
-    { key: 'general', title: 'General Settings', description: 'Configure baseline validation preferences and intake defaults.' },
-    { key: 'roster', title: 'User Roster', description: 'Confirm owner, reviewers, and QC routing for this stage.' },
-    { key: 'stage_form', title: 'QC Review', description: 'Review current stage details and complete required actions.' },
-    { key: 'finalize', title: 'Finalize', description: 'Confirm readiness to move this stage forward.' }
+    { key: 'client_approval', title: 'Client Approval', description: 'Capture the latest customer-facing expectations for this stage.' },
+    { key: 'feedback_to_sales', title: 'Feedback to Sales', description: 'Share aligned review notes and coordination details with Sales.' },
+    { key: 'stage_form', title: 'Review Submission', description: 'Complete checklist and submit final review inputs for this stage.' }
   ],
   technical_review: [
-    { key: 'general', title: 'General Settings', description: 'Define technical review scope and expected checks.' },
-    { key: 'roster', title: 'User Roster', description: 'Assign accountable technical reviewers and escalation contacts.' },
-    { key: 'stage_form', title: 'Technical Review', description: 'Complete the required checklist and stage comments.' },
-    { key: 'finalize', title: 'Finalize', description: 'Validate completion before advancing the workflow.' }
+    { key: 'client_approval', title: 'Client Approval', description: 'Capture the latest customer-facing expectations for this stage.' },
+    { key: 'feedback_to_sales', title: 'Feedback to Sales', description: 'Share aligned review notes and coordination details with Sales.' },
+    { key: 'stage_form', title: 'Review Submission', description: 'Complete checklist and submit final review inputs for this stage.' }
   ],
   estimation: [
-    { key: 'general', title: 'General Settings', description: 'Set estimation constraints and pricing assumptions.' },
-    { key: 'roster', title: 'User Roster', description: 'Confirm the owners for estimation and commercial review.' },
-    { key: 'stage_form', title: 'Estimation', description: 'Provide pricing, checklist updates, and review notes.' },
-    { key: 'finalize', title: 'Finalize', description: 'Review values and prepare this stage for approval.' }
+    { key: 'client_approval', title: 'Client Approval', description: 'Capture the latest customer-facing expectations for this stage.' },
+    { key: 'feedback_to_sales', title: 'Feedback to Sales', description: 'Share aligned review notes and coordination details with Sales.' },
+    { key: 'stage_form', title: 'Review Submission', description: 'Complete checklist and submit final review inputs for this stage.' }
   ],
   ceo_approval: [
-    { key: 'general', title: 'General Settings', description: 'Review governance preferences and approval expectations.' },
-    { key: 'roster', title: 'User Roster', description: 'Confirm executive and stakeholder routing for decisioning.' },
-    { key: 'stage_form', title: 'CEO Approval', description: 'Record decisions, checklist completion, and comments.' },
-    { key: 'finalize', title: 'Finalize', description: 'Lock final review notes before proceeding.' }
+    { key: 'client_approval', title: 'Client Approval', description: 'Capture the latest customer-facing expectations for this stage.' },
+    { key: 'feedback_to_sales', title: 'Feedback to Sales', description: 'Share aligned review notes and coordination details with Sales.' },
+    { key: 'stage_form', title: 'Review Submission', description: 'Complete checklist and submit final review inputs for this stage.' }
   ],
   sales_followup: [
-    { key: 'general', title: 'General Settings', description: 'Prepare follow-up approach and communication settings.' },
-    { key: 'roster', title: 'User Roster', description: 'Assign account and follow-up responsibilities.' },
-    { key: 'stage_form', title: 'Sales Follow-up', description: 'Track follow-up outcomes and mandatory notes.' },
-    { key: 'finalize', title: 'Finalize', description: 'Confirm next workflow direction for client review.' }
+    { key: 'client_approval', title: 'Client Approval', description: 'Capture the latest customer-facing expectations for this stage.' },
+    { key: 'feedback_to_sales', title: 'Feedback to Sales', description: 'Share aligned review notes and coordination details with Sales.' },
+    { key: 'stage_form', title: 'Review Submission', description: 'Complete checklist and submit final review inputs for this stage.' }
   ],
   client_review: [
-    { key: 'general', title: 'General Settings', description: 'Configure review window and expected client outcomes.' },
-    { key: 'roster', title: 'User Roster', description: 'Confirm client-facing and internal approver contacts.' },
-    { key: 'stage_form', title: 'Client Review', description: 'Capture client response and required commentary.' },
-    { key: 'finalize', title: 'Finalize', description: 'Verify all client review data before completion.' }
+    { key: 'client_approval', title: 'Client Approval', description: 'Capture the latest customer-facing expectations for this stage.' },
+    { key: 'feedback_to_sales', title: 'Feedback to Sales', description: 'Share aligned review notes and coordination details with Sales.' },
+    { key: 'stage_form', title: 'Review Submission', description: 'Complete checklist and submit final review inputs for this stage.' }
   ],
   supply_chain: [
-    { key: 'general', title: 'General Settings', description: 'Define implementation handoff preferences for execution.' },
-    { key: 'roster', title: 'User Roster', description: 'Confirm supply chain owners and receiving teams.' },
-    { key: 'stage_form', title: 'Supply Chain', description: 'Review handoff details and stage completion notes.' },
-    { key: 'finalize', title: 'Finalize', description: 'Finalize integration handoff for operational delivery.' }
+    { key: 'client_approval', title: 'Client Approval', description: 'Capture the latest customer-facing expectations for this stage.' },
+    { key: 'feedback_to_sales', title: 'Feedback to Sales', description: 'Share aligned review notes and coordination details with Sales.' },
+    { key: 'stage_form', title: 'Review Submission', description: 'Complete checklist and submit final review inputs for this stage.' }
   ]
 };
+
+const DEPARTMENT_CHECKLIST_CARDS = [
+  { key: 'technical_review', title: 'Technical' },
+  { key: 'estimation', title: 'Estimation' },
+  { key: 'ceo_approval', title: 'CEO Approval' },
+  { key: 'sales_followup', title: 'Feedback to Sales' },
+  { key: 'client_review', title: 'Client Approval' }
+];
+
+function GutmannLogo({ compact = false }) {
+  return (
+    <div className={`gutmann-logo${compact ? ' compact' : ''}`} aria-label="Gutmann">
+      <span className="gutmann-logo-mark" aria-hidden="true">
+        <span className="gutmann-logo-mark-main" />
+        <span className="gutmann-logo-mark-inner" />
+      </span>
+      <span className="gutmann-logo-text">GUTMANN</span>
+    </div>
+  );
+}
 
 const createInitialSubStepState = () =>
   WORKFLOW_STAGES.reduce((acc, stage) => {
@@ -498,6 +519,23 @@ function ProjectDetails() {
   const canActOnStage = Boolean(nextAction || (project?.status === 'ceo_approval' && user?.role === 'ceo'));
 
   const currentRank = STAGE_PROGRESS_ORDER.indexOf(project?.status);
+  const topNavRanks = TOP_NAV_STAGES.map(stage => STAGE_PROGRESS_ORDER.indexOf(stage.key));
+  const getTopNavStageState = (stage, index) => {
+    if (project?.status === 'rejected') {
+      return stage.key === 'supply_chain' ? 'pending' : 'completed';
+    }
+    const stageRank = STAGE_PROGRESS_ORDER.indexOf(stage.key);
+    const nextAnchor = topNavRanks[index + 1] ?? Number.POSITIVE_INFINITY;
+    if (stage.key === 'supply_chain') {
+      if (currentRank > stageRank) return 'completed';
+      if (currentRank === stageRank) return 'active';
+      return 'pending';
+    }
+    if (currentRank >= nextAnchor) return 'completed';
+    if (currentRank >= stageRank) return 'active';
+    return 'pending';
+  };
+
   const viewedStageKey = selectedStageKey || project?.status || WORKFLOW_STAGES[0].key;
   const viewedStage = WORKFLOW_STAGES.find(stage => stage.key === viewedStageKey);
   const viewedStageRank = STAGE_PROGRESS_ORDER.indexOf(viewedStageKey);
@@ -512,6 +550,16 @@ function ProjectDetails() {
   );
   const quotation = project?.quotation || project?.quotations?.[0];
   const overallTurnaroundEnd = TERMINAL_STATUSES.includes(project?.status) ? project?.updated_at : null;
+  const getChecklistState = (stageKey, itemKey) => {
+    if (stageKey === project?.status) {
+      return Boolean(stageInput.checklist[itemKey]);
+    }
+    const stageRank = STAGE_PROGRESS_ORDER.indexOf(stageKey);
+    if (stageRank !== -1 && stageRank < currentRank) {
+      return true;
+    }
+    return false;
+  };
 
   const updateSubStepIndex = (stageKey, nextIndex) => {
     setSelectedSubStepByStage((prev) => {
@@ -548,51 +596,43 @@ function ProjectDetails() {
       {error && <div className="error-message">{error}</div>}
 
       <div className="workflow-wizard-shell">
-        <div className="wizard-main-stepper" role="navigation" aria-label="Workflow stages">
-          {WORKFLOW_STAGES.map((stage, index) => {
-            const stageRank = STAGE_PROGRESS_ORDER.indexOf(stage.key);
-            const stageState = stageRank < currentRank ? 'completed' : stageRank === currentRank ? 'active' : 'pending';
-            const isSelected = viewedStageKey === stage.key;
-            const mainStepMarker = stageState === 'completed' ? COMPLETED_CHECKMARK : index + 1;
-            const mainStepMarkerLabel = stageState === 'completed' ? `${stage.label} completed` : `${stage.label}, step ${index + 1}`;
-            return (
-              <button
-                type="button"
-                key={stage.key}
-                className={`wizard-main-step ${stageState} ${isSelected ? 'selected' : ''}`}
-                onClick={() => handleStageSelect(stage.key)}
-              >
-                <div className="wizard-main-step-header">
-                  <span className="wizard-main-step-count" aria-label={mainStepMarkerLabel}>
-                    {mainStepMarker}
-                  </span>
-                  <span className="wizard-main-step-title">{stage.label}</span>
-                </div>
-                <div className="wizard-main-step-subtext">
-                  {stageState === 'completed' ? 'Completed' : stageState === 'active' ? 'Current' : 'Pending'}
-                </div>
-                {stageState === 'active' && (
-                  <div className="wizard-main-step-indicator" aria-hidden="true">
-                    <span />
-                    <span />
-                    <span />
+        <div className="wizard-top-nav">
+          <GutmannLogo />
+          <div className="wizard-main-stepper" role="navigation" aria-label="Workflow stages">
+            {TOP_NAV_STAGES.map((stage, index) => {
+              const stageState = getTopNavStageState(stage, index);
+              const mainStepMarker = stageState === 'completed' ? COMPLETED_CHECKMARK : index + 1;
+              const mainStepMarkerLabel = stageState === 'completed' ? `${stage.label} completed` : `${stage.label}, step ${index + 1}`;
+              const stageHint = stageState === 'completed' ? 'Completed' : stageState === 'active' ? 'In Progress' : 'Pending';
+              return (
+                <button
+                  type="button"
+                  key={stage.key}
+                  className={`wizard-main-step ${stageState}`}
+                  onClick={() => handleStageSelect(stage.key)}
+                >
+                  <div className="wizard-main-step-header">
+                    <span className="wizard-main-step-count" aria-label={mainStepMarkerLabel}>
+                      {mainStepMarker}
+                    </span>
+                    <span className="wizard-main-step-title">{stage.label}</span>
                   </div>
-                )}
-              </button>
-            );
-          })}
-          <button
-            type="button"
-            className={`wizard-main-step wizard-main-step-cta ${TERMINAL_STATUSES.includes(project?.status) ? 'completed' : ''}`}
-            onClick={() => handleStageSelect(WORKFLOW_STAGES[WORKFLOW_STAGES.length - 1].key)}
-          >
-            Complete Integration
+                  <div className="wizard-main-step-subtext">{stageHint}</div>
+                </button>
+              );
+            })}
+          </div>
+          <button type="button" className="btn-secondary wizard-save-close" onClick={() => navigate('/dashboard')}>
+            Save &amp; Close
           </button>
         </div>
 
         <div className="wizard-content-layout">
           <aside className="wizard-substep-panel" role="navigation" aria-label="Sub-steps">
-            <h3>{stageNumber}. Configure {viewedStage?.label || 'Stage'}</h3>
+            <div className="wizard-sidebar-brand">
+              <GutmannLogo compact />
+            </div>
+            <h3>{stageNumber}. {viewedStage?.label || 'Stage'} Review</h3>
             <div className="wizard-substep-list">
               {viewedSubSteps.map((subStep, index) => {
                 const subState = getSubStepState(viewedStageState, index, selectedSubStepIndex);
@@ -627,47 +667,68 @@ function ProjectDetails() {
                 <h2>{stageNumber}.{selectedSubStepIndex + 1} {selectedSubStep?.title || 'Stage Overview'}</h2>
                 <p>{selectedSubStep?.description || 'Review and configure this workflow stage.'}</p>
               </div>
-              <button type="button" className="btn-secondary wizard-save-close" onClick={() => navigate('/dashboard')}>
-                Save Progress &amp; Close
-              </button>
             </div>
 
             <div className="wizard-panel-card">
               {shouldShowStageForm ? (
                 <>
-                  <h3>Mandatory Checklist &amp; Feedback</h3>
+                  <h3>Workflow Progress &amp; Department Checklists</h3>
                   {Object.keys(validationErrors).length > 0 && (
                     <div className="error-message" role="alert">
                       Please fix the highlighted fields before continuing.
                     </div>
                   )}
                   <div className="form-group">
-                    <label htmlFor="project-checklist-group">Essential Checklist *</label>
-                    <div
-                      id="project-checklist-group"
-                      ref={checklistRef}
-                      tabIndex={-1}
-                      className={validationErrors.checklist ? 'field-error-group wizard-toggle-list' : 'wizard-toggle-list'}
-                    >
-                      {stageRequirements.checklist.map((item) => (
-                        <label key={item.key} className="wizard-toggle-item">
-                          <span>{item.label}</span>
-                          <span className="wizard-switch">
-                            <input
-                              type="checkbox"
-                              checked={!!stageInput.checklist[item.key]}
-                              onChange={(e) => {
-                                setStageInput(prev => ({
-                                  ...prev,
-                                  checklist: { ...prev.checklist, [item.key]: e.target.checked }
-                                }));
-                                clearValidationError('checklist');
-                              }}
-                            />
-                            <span className="wizard-switch-slider" />
-                          </span>
-                        </label>
-                      ))}
+                    <label htmlFor="project-checklist-group">Department Checklist Cards *</label>
+                    <div id="project-checklist-group" className="department-checklist-grid">
+                      {DEPARTMENT_CHECKLIST_CARDS.map((department) => {
+                        const requirements = STAGE_REQUIREMENTS[department.key];
+                        if (!requirements) return null;
+                        const isCurrentDepartment = department.key === project?.status;
+                        const cardClass = isCurrentDepartment ? ' active' : '';
+                        return (
+                          <section
+                            key={department.key}
+                            ref={isCurrentDepartment ? checklistRef : undefined}
+                            tabIndex={isCurrentDepartment ? -1 : undefined}
+                            className={`department-checklist-card${cardClass}${validationErrors.checklist && isCurrentDepartment ? ' field-error-group' : ''}`}
+                          >
+                            <header>
+                              <h4>{department.title}</h4>
+                              <span>{isCurrentDepartment ? 'Current Stage' : getChecklistState(department.key, requirements.checklist[0]?.key) ? 'Completed' : 'Pending'}</span>
+                            </header>
+                            <div className="wizard-toggle-list">
+                              {requirements.checklist.map((item) => {
+                                const isChecked = getChecklistState(department.key, item.key);
+                                return (
+                                  <label key={item.key} className="wizard-toggle-item">
+                                    <span>
+                                      {item.label}
+                                      <small className="wizard-toggle-status-text">{isChecked ? 'Completed' : 'Pending'}</small>
+                                    </span>
+                                    <span className="wizard-switch">
+                                      <input
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        disabled={!isCurrentDepartment}
+                                        onChange={(e) => {
+                                          if (!isCurrentDepartment) return;
+                                          setStageInput(prev => ({
+                                            ...prev,
+                                            checklist: { ...prev.checklist, [item.key]: e.target.checked }
+                                          }));
+                                          clearValidationError('checklist');
+                                        }}
+                                      />
+                                      <span className="wizard-switch-slider" />
+                                    </span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </section>
+                        );
+                      })}
                     </div>
                     {validationErrors.checklist && <div className="field-error-text">{validationErrors.checklist}</div>}
                   </div>
