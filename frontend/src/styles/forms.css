@@ -68,6 +68,25 @@
   box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
 }
 
+.form-group .input-error,
+.form-group .input-error:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.field-error-group {
+  border: 1px solid #dc2626;
+  border-radius: 8px;
+  padding: 8px;
+  background: #fff7f7;
+}
+
+.field-error-text {
+  margin-top: 6px;
+  color: #b91c1c;
+  font-size: 12px;
+}
+
 .login-box .btn-primary {
   width: 100%;
   padding: 12px;
