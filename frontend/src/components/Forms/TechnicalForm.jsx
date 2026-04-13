@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import api from '../../services/api';
 
 function TechnicalForm({ inquiry, onSuccess, onCancel }) {
@@ -18,6 +18,10 @@ function TechnicalForm({ inquiry, onSuccess, onCancel }) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [validationErrors, setValidationErrors] = useState({});
+  const checklistRef = useRef(null);
+  const remarksRef = useRef(null);
+  const decisionRef = useRef(null);
   const checklistItems = [
     { key: 'requirement_audit', label: 'Requirement audit completed' },
     { key: 'feasibility_validated', label: 'Feasibility validated' },
@@ -36,24 +40,64 @@ function TechnicalForm({ inquiry, onSuccess, onCancel }) {
       ...formData,
       checklist: { ...formData.checklist, [e.target.name]: e.target.checked }
     });
+    setValidationErrors((prev) => {
+      if (!prev.checklist) return prev;
+      const next = { ...prev };
+      delete next.checklist;
+      return next;
+    });
+  };
+
+  const clearValidationError = (field) => {
+    setValidationErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const focusFirstError = (errors) => {
+    const order = ['checklist', 'remarks', 'decision'];
+    const refs = {
+      checklist: checklistRef,
+      remarks: remarksRef,
+      decision: decisionRef
+    };
+    const first = order.find((field) => errors[field]);
+    if (!first || !refs[first]?.current) return;
+    refs[first].current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (typeof refs[first].current.focus === 'function') {
+      refs[first].current.focus();
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.decision) {
+      errors.decision = 'This field is required.';
+    }
+    if (!formData.remarks.trim()) {
+      errors.remarks = 'This field is required.';
+    }
+    if (formData.decision === 'approved' && !allChecklistDone) {
+      errors.checklist = 'Please complete all checklist items before approving.';
+    }
+    return errors;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.decision) {
-      setError('Please select a decision');
-      return;
-    }
-    if (!formData.remarks.trim()) {
-      setError('Feedback remarks are mandatory');
-      return;
-    }
-    if (formData.decision === 'approved' && !allChecklistDone) {
-      setError('Complete all checklist items before approving');
+    const errors = validateForm();
+    setValidationErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setError('Please fix the highlighted fields.');
+      focusFirstError(errors);
       return;
     }
     setLoading(true);
     setError('');
+    setValidationErrors({});
     try {
       const parsedDuration = formData.estimated_duration === ''
         ? null
@@ -104,7 +148,11 @@ function TechnicalForm({ inquiry, onSuccess, onCancel }) {
       <div className="form-section">
         <h3>Technical Checklist</h3>
         <p className="form-helper-text">Progress: {completedChecklist}/{checklistItems.length} completed</p>
-        <div className="checklist-card-grid">
+        <div
+          ref={checklistRef}
+          tabIndex={-1}
+          className={`checklist-card-grid ${validationErrors.checklist ? 'field-error-group' : ''}`}
+        >
           {checklistItems.map((item) => (
             <div key={item.key} className="checklist-card-item">
               <div className="form-checkbox">
@@ -120,30 +168,49 @@ function TechnicalForm({ inquiry, onSuccess, onCancel }) {
             </div>
           ))}
         </div>
+        {validationErrors.checklist && <div className="field-error-text">{validationErrors.checklist}</div>}
       </div>
       <div className="form-group">
         <label>Remarks *</label>
-        <textarea name="remarks" value={formData.remarks} onChange={handleChange} rows={3} />
+        <textarea
+          ref={remarksRef}
+          name="remarks"
+          value={formData.remarks}
+          onChange={(e) => {
+            handleChange(e);
+            clearValidationError('remarks');
+          }}
+          rows={3}
+          className={validationErrors.remarks ? 'input-error' : ''}
+        />
+        {validationErrors.remarks && <div className="field-error-text">{validationErrors.remarks}</div>}
       </div>
 
       <div className="form-group">
         <label>Decision *</label>
-        <div className="decision-buttons">
+        <div ref={decisionRef} tabIndex={-1} className={`decision-buttons ${validationErrors.decision ? 'field-error-group' : ''}`}>
           <button
             type="button"
             className={`btn-decision ${formData.decision === 'approved' ? 'active approve' : ''}`}
-            onClick={() => setFormData({ ...formData, decision: 'approved' })}
+            onClick={() => {
+              setFormData({ ...formData, decision: 'approved' });
+              clearValidationError('decision');
+            }}
           >
             ✓ Approve for Estimation
           </button>
           <button
             type="button"
             className={`btn-decision ${formData.decision === 'rejected' ? 'active reject' : ''}`}
-            onClick={() => setFormData({ ...formData, decision: 'rejected' })}
+            onClick={() => {
+              setFormData({ ...formData, decision: 'rejected' });
+              clearValidationError('decision');
+            }}
           >
             ✗ Reject to Sales
           </button>
         </div>
+        {validationErrors.decision && <div className="field-error-text">{validationErrors.decision}</div>}
       </div>
 
       <div className="form-actions">

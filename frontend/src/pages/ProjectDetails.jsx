@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import api from '../services/api';
@@ -38,6 +38,10 @@ const SLA_HOURS = {
 };
 
 const TERMINAL_STATUSES = ['approved', 'rejected', 'supply_chain'];
+const PROJECT_VIEW_STORAGE_KEY = 'project-details:last-open';
+
+const getStageDraftStorageKey = (id, status) => `project-stage-draft:${id}:${status || 'unknown'}`;
+const getQcModalStorageKey = (id) => `project-qc-modal-open:${id}`;
 
 const STAGE_REQUIREMENTS = {
   technical_review: {
@@ -148,6 +152,12 @@ function ProjectDetails() {
   const [movingNext, setMovingNext] = useState(false);
   const [showQCReviewForm, setShowQCReviewForm] = useState(false);
   const [stageInput, setStageInput] = useState(createStageInputState());
+  const [validationErrors, setValidationErrors] = useState({});
+  const checklistRef = useRef(null);
+  const estimatedCostRef = useRef(null);
+  const finalPriceRef = useRef(null);
+  const clientResponseRef = useRef(null);
+  const feedbackRef = useRef(null);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -185,8 +195,61 @@ function ProjectDetails() {
   }, [id]);
 
   useEffect(() => {
-    setStageInput(createStageInputState(project?.status));
-  }, [project?.status]);
+    const defaultState = createStageInputState(project?.status);
+    if (!id || !project?.status) {
+      setStageInput(defaultState);
+      setValidationErrors({});
+      return;
+    }
+    try {
+      const saved = localStorage.getItem(getStageDraftStorageKey(id, project.status));
+      if (!saved) {
+        setStageInput(defaultState);
+        setValidationErrors({});
+        return;
+      }
+      const parsed = JSON.parse(saved);
+      setStageInput({
+        ...defaultState,
+        ...parsed,
+        checklist: {
+          ...defaultState.checklist,
+          ...(parsed?.checklist || {})
+        }
+      });
+      setValidationErrors({});
+    } catch (err) {
+      console.warn('Failed to restore stage draft:', err);
+      setStageInput(defaultState);
+      setValidationErrors({});
+    }
+  }, [id, project?.status]);
+
+  useEffect(() => {
+    if (!id) return;
+    localStorage.setItem(PROJECT_VIEW_STORAGE_KEY, id);
+  }, [id]);
+
+  useEffect(() => {
+    if (!id || !project?.status) return;
+    localStorage.setItem(getStageDraftStorageKey(id, project.status), JSON.stringify(stageInput));
+  }, [id, project?.status, stageInput]);
+
+  useEffect(() => {
+    if (!id) return;
+    const canReviewQc = user?.role === 'qc' && project?.status === 'qc_review';
+    if (!canReviewQc) {
+      setShowQCReviewForm(false);
+      return;
+    }
+    const storedValue = localStorage.getItem(getQcModalStorageKey(id));
+    setShowQCReviewForm(storedValue === '1');
+  }, [id, user?.role, project?.status]);
+
+  useEffect(() => {
+    if (!id) return;
+    localStorage.setItem(getQcModalStorageKey(id), showQCReviewForm ? '1' : '0');
+  }, [id, showQCReviewForm]);
 
   const stageRecords = useMemo(() => {
     const rows = project?.project_status || [];
@@ -228,6 +291,7 @@ function ProjectDetails() {
   };
 
   const moveStage = async (nextStatus, extraPayload = {}) => {
+    const draftKey = getStageDraftStorageKey(id, project?.status);
     const estimatedCostValue = stageInput.estimated_cost === '' ? null : Number(stageInput.estimated_cost);
     const finalPriceValue = stageInput.final_price === '' ? null : Number(stageInput.final_price);
     setMovingNext(true);
@@ -244,6 +308,8 @@ function ProjectDetails() {
         ...extraPayload
       });
       await fetchAll();
+      localStorage.removeItem(draftKey);
+      setValidationErrors({});
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to move to next stage');
     } finally {
@@ -251,21 +317,77 @@ function ProjectDetails() {
     }
   };
 
+  const focusAndScrollToField = (fieldName) => {
+    const fieldRefs = {
+      checklist: checklistRef,
+      estimated_cost: estimatedCostRef,
+      final_price: finalPriceRef,
+      client_response: clientResponseRef,
+      feedback: feedbackRef
+    };
+    const target = fieldRefs[fieldName]?.current;
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (typeof target.focus === 'function') {
+      target.focus();
+    }
+  };
+
+  const validateStageAction = (mode = 'full') => {
+    if (!stageRequirements) return true;
+    const errors = {};
+    const checklistValid = stageRequirements.checklist.every(item => stageInput.checklist[item.key]);
+    const feedbackValid = stageInput.feedback.trim().length > 0;
+    const estimatedCostNumber = Number(stageInput.estimated_cost);
+    const finalPriceNumber = Number(stageInput.final_price);
+
+    if (mode !== 'feedbackOnly' && !checklistValid) {
+      errors.checklist = 'Please complete all checklist items.';
+    }
+
+    if ((stageRequirements.requireFeedback || mode === 'feedbackOnly') && !feedbackValid) {
+      errors.feedback = 'This field is required.';
+    }
+
+    if (mode !== 'feedbackOnly' && stageRequirements.requirePricing) {
+      if (!Number.isFinite(estimatedCostNumber) || estimatedCostNumber <= 0) {
+        errors.estimated_cost = 'Enter a valid value greater than 0.';
+      }
+      if (!Number.isFinite(finalPriceNumber) || finalPriceNumber <= 0) {
+        errors.final_price = 'Enter a valid value greater than 0.';
+      }
+    }
+
+    if (mode !== 'feedbackOnly' && stageRequirements.requireClientResponse && !stageInput.client_response.trim()) {
+      errors.client_response = 'This field is required.';
+    }
+
+    setValidationErrors(errors);
+    const firstInvalidField = ['checklist', 'estimated_cost', 'final_price', 'client_response', 'feedback']
+      .find((field) => errors[field]);
+    if (firstInvalidField) {
+      focusAndScrollToField(firstInvalidField);
+      return false;
+    }
+    return true;
+  };
+
+  const handleActionClick = (nextStatus, extraPayload = {}, mode = 'full') => {
+    if (!validateStageAction(mode)) return;
+    moveStage(nextStatus, extraPayload);
+  };
+
+  const clearValidationError = (field) => {
+    setValidationErrors((prev) => {
+      if (!prev[field]) return prev;
+      const updated = { ...prev };
+      delete updated[field];
+      return updated;
+    });
+  };
+
   const nextAction = getNextAction();
   const stageRequirements = STAGE_REQUIREMENTS[project?.status];
-  const checkedAllChecklist = !stageRequirements || stageRequirements.checklist.every(item => stageInput.checklist[item.key]);
-  const hasFeedback = !stageRequirements?.requireFeedback || stageInput.feedback.trim().length > 0;
-  const estimatedCost = Number(stageInput.estimated_cost);
-  const finalPrice = Number(stageInput.final_price);
-  const hasValidPricing = !stageRequirements?.requirePricing || (
-    Number.isFinite(estimatedCost) &&
-    estimatedCost > 0 &&
-    Number.isFinite(finalPrice) &&
-    finalPrice > 0
-  );
-  const hasClientResponse = !stageRequirements?.requireClientResponse || stageInput.client_response.trim().length > 0;
-  const isNextReady = checkedAllChecklist && hasFeedback && hasValidPricing && hasClientResponse;
-  const isClientDecisionReady = checkedAllChecklist && hasFeedback;
   const canActOnStage = Boolean(nextAction || (project?.status === 'ceo_approval' && user?.role === 'ceo'));
 
   const currentRank = STAGE_PROGRESS_ORDER.indexOf(project?.status);
@@ -339,24 +461,39 @@ function ProjectDetails() {
 
       {canActOnStage && stageRequirements && (
         <div className="detail-card" style={{ marginTop: '16px' }}>
-          <h3>Mandatory Checklist & Feedback</h3>
+                <h3>Mandatory Checklist & Feedback</h3>
+                {Object.keys(validationErrors).length > 0 && (
+                  <div className="error-message" role="alert">
+                    Please fix the highlighted fields before continuing.
+                  </div>
+                )}
           <div className="form-group">
-            <label>Essential Checklist *</label>
-            <div style={{ display: 'grid', gap: '8px' }}>
+            <label htmlFor="project-checklist-group">Essential Checklist *</label>
+            <div
+              id="project-checklist-group"
+              ref={checklistRef}
+              tabIndex={-1}
+              className={validationErrors.checklist ? 'field-error-group' : ''}
+              style={{ display: 'grid', gap: '8px' }}
+            >
               {stageRequirements.checklist.map((item) => (
                 <label key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <input
                     type="checkbox"
                     checked={!!stageInput.checklist[item.key]}
-                    onChange={(e) => setStageInput(prev => ({
-                      ...prev,
-                      checklist: { ...prev.checklist, [item.key]: e.target.checked }
-                    }))}
+                    onChange={(e) => {
+                      setStageInput(prev => ({
+                        ...prev,
+                        checklist: { ...prev.checklist, [item.key]: e.target.checked }
+                      }));
+                      clearValidationError('checklist');
+                    }}
                   />
                   <span>{item.label}</span>
                 </label>
               ))}
             </div>
+            {validationErrors.checklist && <div className="field-error-text">{validationErrors.checklist}</div>}
           </div>
 
           {stageRequirements.requirePricing && (
@@ -364,51 +501,75 @@ function ProjectDetails() {
               <div className="form-group">
                 <label>Estimated Cost *</label>
                 <input
+                  ref={estimatedCostRef}
                   type="number"
                   min="0"
                   step="0.01"
+                  className={validationErrors.estimated_cost ? 'input-error' : ''}
                   value={stageInput.estimated_cost}
-                  onChange={(e) => setStageInput(prev => ({ ...prev, estimated_cost: e.target.value }))}
+                  onChange={(e) => {
+                    setStageInput(prev => ({ ...prev, estimated_cost: e.target.value }));
+                    clearValidationError('estimated_cost');
+                  }}
                   placeholder="Enter estimated cost"
                 />
+                {validationErrors.estimated_cost && <div className="field-error-text">{validationErrors.estimated_cost}</div>}
               </div>
               <div className="form-group">
                 <label>Final Price *</label>
                 <input
+                  ref={finalPriceRef}
                   type="number"
                   min="0"
                   step="0.01"
+                  className={validationErrors.final_price ? 'input-error' : ''}
                   value={stageInput.final_price}
-                  onChange={(e) => setStageInput(prev => ({ ...prev, final_price: e.target.value }))}
+                  onChange={(e) => {
+                    setStageInput(prev => ({ ...prev, final_price: e.target.value }));
+                    clearValidationError('final_price');
+                  }}
                   placeholder="Enter final price"
                 />
+                {validationErrors.final_price && <div className="field-error-text">{validationErrors.final_price}</div>}
               </div>
             </div>
           )}
 
           {stageRequirements.requireClientResponse && (
             <div className="form-group">
-              <label>Client Response *</label>
-              <select
-                value={stageInput.client_response}
-                onChange={(e) => setStageInput(prev => ({ ...prev, client_response: e.target.value }))}
-              >
-                <option value="">Select response</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-                <option value="conditional_approval">Conditional approval</option>
-              </select>
-            </div>
-          )}
+                <label>Client Response *</label>
+                <select
+                  ref={clientResponseRef}
+                  className={validationErrors.client_response ? 'input-error' : ''}
+                  value={stageInput.client_response}
+                  onChange={(e) => {
+                    setStageInput(prev => ({ ...prev, client_response: e.target.value }));
+                    clearValidationError('client_response');
+                  }}
+                >
+                  <option value="">Select response</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                  <option value="conditional_approval">Conditional approval</option>
+                </select>
+                {validationErrors.client_response && <div className="field-error-text">{validationErrors.client_response}</div>}
+              </div>
+            )}
 
           <div className="form-group">
             <label>Feedback / Comments *</label>
             <textarea
+              ref={feedbackRef}
               rows={3}
+              className={validationErrors.feedback ? 'input-error' : ''}
               value={stageInput.feedback}
-              onChange={(e) => setStageInput(prev => ({ ...prev, feedback: e.target.value }))}
+              onChange={(e) => {
+                setStageInput(prev => ({ ...prev, feedback: e.target.value }));
+                clearValidationError('feedback');
+              }}
               placeholder="Mandatory comments for this stage"
             />
+            {validationErrors.feedback && <div className="field-error-text">{validationErrors.feedback}</div>}
           </div>
         </div>
       )}
@@ -458,64 +619,64 @@ function ProjectDetails() {
           {project.status === 'ceo_approval' && user?.role === 'ceo' ? (
             <>
               <button
-                onClick={() => moveStage('client_review', { decision: 'approved' })}
+                onClick={() => handleActionClick('client_review', { decision: 'approved' })}
                 className="btn-primary"
-                disabled={movingNext || !isNextReady}
+                disabled={movingNext}
               >
                 {movingNext ? 'Approving...' : 'Approve'}
               </button>
               <button
-                onClick={() => moveStage('rejected', { decision: 'rejected' })}
+                onClick={() => handleActionClick('rejected', { decision: 'rejected' }, 'feedbackOnly')}
                 className="btn-danger"
-                disabled={movingNext || !hasFeedback}
+                disabled={movingNext}
               >
                 {movingNext ? 'Rejecting...' : 'Reject'}
               </button>
             </>
           ) : project.status === 'sales_followup' && user?.role === 'salesperson' ? (
             <>
-              <button onClick={() => moveStage('client_review', { decision: 'send_to_client' })} className="btn-primary" disabled={movingNext || !isNextReady}>
+              <button onClick={() => handleActionClick('client_review', { decision: 'send_to_client' })} className="btn-primary" disabled={movingNext}>
                 {movingNext ? 'Sending...' : 'Send to Client'}
               </button>
-              <button onClick={() => moveStage('qc_review', { decision: 'restart_qc' })} className="btn-secondary" disabled={movingNext || !hasFeedback}>
+              <button onClick={() => handleActionClick('qc_review', { decision: 'restart_qc' }, 'feedbackOnly')} className="btn-secondary" disabled={movingNext}>
                 Restart QC
               </button>
-              <button onClick={() => moveStage('technical_review', { decision: 'restart_technical' })} className="btn-secondary" disabled={movingNext || !hasFeedback}>
+              <button onClick={() => handleActionClick('technical_review', { decision: 'restart_technical' }, 'feedbackOnly')} className="btn-secondary" disabled={movingNext}>
                 Restart Technical
               </button>
-              <button onClick={() => moveStage('estimation', { decision: 'restart_estimation' })} className="btn-secondary" disabled={movingNext || !hasFeedback}>
+              <button onClick={() => handleActionClick('estimation', { decision: 'restart_estimation' }, 'feedbackOnly')} className="btn-secondary" disabled={movingNext}>
                 Restart Estimation
               </button>
             </>
           ) : project.status === 'technical_review' && user?.role === 'technical' ? (
             <>
-              <button onClick={() => moveStage('estimation')} className="btn-primary" disabled={movingNext || !isNextReady}>
+              <button onClick={() => handleActionClick('estimation')} className="btn-primary" disabled={movingNext}>
                 {movingNext ? 'Moving...' : 'Next'}
               </button>
-              <button onClick={() => moveStage('technical_revision', { decision: 'rejected' })} className="btn-danger" disabled={movingNext || !hasFeedback}>
+              <button onClick={() => handleActionClick('technical_revision', { decision: 'rejected' }, 'feedbackOnly')} className="btn-danger" disabled={movingNext}>
                 Request Revision
               </button>
             </>
           ) : project.status === 'estimation' && user?.role === 'estimation' ? (
             <>
-              <button onClick={() => moveStage('ceo_approval')} className="btn-primary" disabled={movingNext || !isNextReady}>
+              <button onClick={() => handleActionClick('ceo_approval')} className="btn-primary" disabled={movingNext}>
                 {movingNext ? 'Moving...' : 'Next'}
               </button>
-              <button onClick={() => moveStage('technical_review', { decision: 'rejected' })} className="btn-danger" disabled={movingNext || !hasFeedback}>
+              <button onClick={() => handleActionClick('technical_review', { decision: 'rejected' }, 'feedbackOnly')} className="btn-danger" disabled={movingNext}>
                 Return to Technical
               </button>
             </>
           ) : project.status === 'client_review' && ['salesperson', 'client', 'ceo'].includes(user?.role) ? (
             <>
-              <button onClick={() => moveStage('approved', { client_response: stageInput.client_response || 'approved', decision: 'approved' })} className="btn-primary" disabled={movingNext || !isClientDecisionReady}>
+              <button onClick={() => handleActionClick('approved', { decision: 'approved' })} className="btn-primary" disabled={movingNext}>
                 {movingNext ? 'Updating...' : 'Client Approved'}
               </button>
-              <button onClick={() => moveStage('rejected', { client_response: stageInput.client_response || 'rejected', decision: 'rejected' })} className="btn-danger" disabled={movingNext || !isClientDecisionReady}>
+              <button onClick={() => handleActionClick('rejected', { decision: 'rejected' })} className="btn-danger" disabled={movingNext}>
                 Client Rejected
               </button>
             </>
           ) : (
-            <button onClick={() => moveStage(nextAction.nextStatus)} className="btn-primary" disabled={movingNext || !isNextReady}>
+            <button onClick={() => handleActionClick(nextAction.nextStatus)} className="btn-primary" disabled={movingNext}>
               {movingNext ? 'Moving...' : 'Next'}
             </button>
           )}
