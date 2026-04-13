@@ -1087,6 +1087,10 @@
     border-right: 1px solid #e5e7eb;
   }
 
+  .wizard-main-step:last-child {
+    border-right: none;
+  }
+
   .wizard-content-layout {
     grid-template-columns: 1fr;
   }

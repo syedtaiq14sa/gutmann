@@ -14,13 +14,8 @@ const WORKFLOW_STAGES = [
   { key: 'supply_chain', label: 'Supply Chain' }
 ];
 
-const TOP_NAV_STAGES = [
-  { key: 'qc_review', label: 'QC' },
-  { key: 'technical_review', label: 'Technical' },
-  { key: 'estimation', label: 'Estimation' },
-  { key: 'ceo_approval', label: 'CEO Approval' },
-  { key: 'supply_chain', label: 'Supply Chain' }
-];
+const TOP_NAV_STAGE_KEYS = ['qc_review', 'technical_review', 'estimation', 'ceo_approval', 'supply_chain'];
+const TOP_NAV_STAGES = WORKFLOW_STAGES.filter(stage => TOP_NAV_STAGE_KEYS.includes(stage.key));
 
 const STAGE_PROGRESS_ORDER = [
   'received',
@@ -94,43 +89,16 @@ const STAGE_REQUIREMENTS = {
   }
 };
 
-const STAGE_SUB_STEPS = {
-  qc_review: [
-    { key: 'client_approval', title: 'Client Approval', description: 'Capture the latest customer-facing expectations for this stage.' },
-    { key: 'feedback_to_sales', title: 'Feedback to Sales', description: 'Share aligned review notes and coordination details with Sales.' },
-    { key: 'stage_form', title: 'Review Submission', description: 'Complete checklist and submit final review inputs for this stage.' }
-  ],
-  technical_review: [
-    { key: 'client_approval', title: 'Client Approval', description: 'Capture the latest customer-facing expectations for this stage.' },
-    { key: 'feedback_to_sales', title: 'Feedback to Sales', description: 'Share aligned review notes and coordination details with Sales.' },
-    { key: 'stage_form', title: 'Review Submission', description: 'Complete checklist and submit final review inputs for this stage.' }
-  ],
-  estimation: [
-    { key: 'client_approval', title: 'Client Approval', description: 'Capture the latest customer-facing expectations for this stage.' },
-    { key: 'feedback_to_sales', title: 'Feedback to Sales', description: 'Share aligned review notes and coordination details with Sales.' },
-    { key: 'stage_form', title: 'Review Submission', description: 'Complete checklist and submit final review inputs for this stage.' }
-  ],
-  ceo_approval: [
-    { key: 'client_approval', title: 'Client Approval', description: 'Capture the latest customer-facing expectations for this stage.' },
-    { key: 'feedback_to_sales', title: 'Feedback to Sales', description: 'Share aligned review notes and coordination details with Sales.' },
-    { key: 'stage_form', title: 'Review Submission', description: 'Complete checklist and submit final review inputs for this stage.' }
-  ],
-  sales_followup: [
-    { key: 'client_approval', title: 'Client Approval', description: 'Capture the latest customer-facing expectations for this stage.' },
-    { key: 'feedback_to_sales', title: 'Feedback to Sales', description: 'Share aligned review notes and coordination details with Sales.' },
-    { key: 'stage_form', title: 'Review Submission', description: 'Complete checklist and submit final review inputs for this stage.' }
-  ],
-  client_review: [
-    { key: 'client_approval', title: 'Client Approval', description: 'Capture the latest customer-facing expectations for this stage.' },
-    { key: 'feedback_to_sales', title: 'Feedback to Sales', description: 'Share aligned review notes and coordination details with Sales.' },
-    { key: 'stage_form', title: 'Review Submission', description: 'Complete checklist and submit final review inputs for this stage.' }
-  ],
-  supply_chain: [
-    { key: 'client_approval', title: 'Client Approval', description: 'Capture the latest customer-facing expectations for this stage.' },
-    { key: 'feedback_to_sales', title: 'Feedback to Sales', description: 'Share aligned review notes and coordination details with Sales.' },
-    { key: 'stage_form', title: 'Review Submission', description: 'Complete checklist and submit final review inputs for this stage.' }
-  ]
-};
+const SHARED_STAGE_SUB_STEPS = [
+  { key: 'client_approval', title: 'Client Approval', description: 'Capture the latest customer-facing expectations for this stage.' },
+  { key: 'feedback_to_sales', title: 'Feedback to Sales', description: 'Share aligned review notes and coordination details with Sales.' },
+  { key: 'stage_form', title: 'Review Submission', description: 'Complete checklist and submit final review inputs for this stage.' }
+];
+
+const STAGE_SUB_STEPS = WORKFLOW_STAGES.reduce((acc, stage) => {
+  acc[stage.key] = SHARED_STAGE_SUB_STEPS;
+  return acc;
+}, {});
 
 const DEPARTMENT_CHECKLIST_CARDS = [
   { key: 'technical_review', title: 'Technical' },
@@ -138,7 +106,7 @@ const DEPARTMENT_CHECKLIST_CARDS = [
   { key: 'ceo_approval', title: 'CEO Approval' },
   { key: 'sales_followup', title: 'Feedback to Sales' },
   { key: 'client_review', title: 'Client Approval' }
-];
+].filter(({ key }) => STAGE_REQUIREMENTS[key]);
 
 function GutmannLogo({ compact = false }) {
   return (
@@ -686,6 +654,11 @@ function ProjectDetails() {
                         if (!requirements) return null;
                         const isCurrentDepartment = department.key === project?.status;
                         const cardClass = isCurrentDepartment ? ' active' : '';
+                        const completedCount = requirements.checklist.reduce((count, item) => (
+                          count + (getChecklistState(department.key, item.key) ? 1 : 0)
+                        ), 0);
+                        const isDepartmentComplete = requirements.checklist.length > 0
+                          && completedCount === requirements.checklist.length;
                         return (
                           <section
                             key={department.key}
@@ -695,7 +668,7 @@ function ProjectDetails() {
                           >
                             <header>
                               <h4>{department.title}</h4>
-                              <span>{isCurrentDepartment ? 'Current Stage' : getChecklistState(department.key, requirements.checklist[0]?.key) ? 'Completed' : 'Pending'}</span>
+                              <span>{isCurrentDepartment ? 'Current Stage' : isDepartmentComplete ? 'Completed' : 'Pending'}</span>
                             </header>
                             <div className="wizard-toggle-list">
                               {requirements.checklist.map((item) => {
