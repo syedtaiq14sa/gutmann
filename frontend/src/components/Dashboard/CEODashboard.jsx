@@ -21,6 +21,7 @@ function CEODashboard() {
   const [pendingApprovals, setPendingApprovals] = useState([]);
   const [processingById, setProcessingById] = useState({});
   const [actionError, setActionError] = useState('');
+  const [pendingError, setPendingError] = useState('');
 
   useEffect(() => {
     dispatch(fetchDashboardData());
@@ -30,8 +31,10 @@ function CEODashboard() {
     try {
       const response = await api.get('/ceo/pending');
       setPendingApprovals(response.data || []);
+      setPendingError('');
     } catch (_err) {
       setPendingApprovals([]);
+      setPendingError('Failed to load pending approvals.');
     }
   };
 
@@ -107,8 +110,11 @@ function CEODashboard() {
       <StageTracker projects={projects} />
       <div className="task-section" style={{ marginBottom: '24px' }}>
         <h2>Pending CEO Approvals</h2>
-        {actionError && <p className="error-text">{actionError}</p>}
-        {pendingApprovals.length === 0 ? (
+        {actionError && <p className="error-text" role="alert">{actionError}</p>}
+        {pendingError && <p className="error-text" role="alert">{pendingError}</p>}
+        {pendingError ? (
+          <p className="empty-state">Unable to load approvals right now.</p>
+        ) : pendingApprovals.length === 0 ? (
           <p className="empty-state">No approvals pending ✅</p>
         ) : (
           <div className="task-list">
@@ -130,6 +136,7 @@ function CEODashboard() {
                       onClick={() => handleDecision(inquiryId, DECISIONS.APPROVED)}
                       className="btn-primary btn-sm"
                       disabled={isProcessing}
+                      aria-label={`Approve ${project.inquiry_number || `inquiry ${inquiryId}`}`}
                     >
                       {actionLabel || 'Approve'}
                     </button>
@@ -137,6 +144,7 @@ function CEODashboard() {
                       onClick={() => handleDecision(inquiryId, DECISIONS.REJECTED)}
                       className="btn-danger btn-sm"
                       disabled={isProcessing}
+                      aria-label={`Reject ${project.inquiry_number || `inquiry ${inquiryId}`}`}
                     >
                       {actionLabel || 'Reject'}
                     </button>
