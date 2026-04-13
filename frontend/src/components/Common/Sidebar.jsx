@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { GUTMANN_LOGO_URL } from '../../constants/branding';
 
 function Sidebar({ userRole, isOpen, onClose }) {
   const getMenuItems = () => {
@@ -13,6 +14,9 @@ function Sidebar({ userRole, isOpen, onClose }) {
 
   return (
     <aside className={`sidebar${isOpen ? ' sidebar-open' : ''}`}>
+      <div className="sidebar-brand">
+        <img src={GUTMANN_LOGO_URL} alt="Gutmann logo" className="sidebar-logo" />
+      </div>
       <nav className="sidebar-nav">
         {getMenuItems().map(item => (
           <NavLink
