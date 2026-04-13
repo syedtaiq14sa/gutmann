@@ -5,6 +5,11 @@ import StageTracker from './StageTracker';
 import api from '../../services/api';
 import '../../styles/dashboard.css';
 
+const NOTES_BY_DECISION = {
+  approved: 'Approved by CEO',
+  rejected: 'Rejected by CEO'
+};
+
 function CEODashboard() {
   const dispatch = useDispatch();
   const { projects, loading } = useSelector(state => state.projects);
@@ -40,17 +45,13 @@ function CEODashboard() {
   }, []);
 
   const handleDecision = async (inquiryId, decision) => {
-    const notesByDecision = {
-      approved: 'Approved by CEO',
-      rejected: 'Rejected by CEO'
-    };
     try {
       setProcessingId(inquiryId);
       setActionError('');
       await api.post('/ceo/approve', {
         inquiry_id: inquiryId,
         decision,
-        notes: notesByDecision[decision] || `CEO decision: ${decision}`
+        notes: NOTES_BY_DECISION[decision] || `CEO decision: ${decision}`
       });
       await Promise.all([
         dispatch(fetchDashboardData()),
@@ -104,26 +105,27 @@ function CEODashboard() {
         ) : (
           <div className="task-list">
             {pendingApprovals.map((project) => {
-              const quotation = project.quotations?.[0];
-              const isProcessing = processingId === project.id;
+              const inquiryId = project.inquiry_id || project.id;
+              const firstQuotation = project.quotations?.[0];
+              const isProcessing = processingId === inquiryId;
               return (
-                <div key={project.id} className="task-card priority-high">
+                <div key={inquiryId} className="task-card priority-high">
                   <div className="task-header">
                     <span>{project.inquiry_number || `Inquiry #${project.id}`}</span>
                     <span className="priority-badge priority-high">approval needed</span>
                   </div>
                   <p>{project.client_name || 'Unknown Client'}</p>
-                  <p>Quoted Price: ${(quotation?.final_price || 0).toLocaleString()}</p>
+                  <p>Quoted Price: ${(firstQuotation?.final_price || 0).toLocaleString()}</p>
                   <div className="ceo-action-buttons">
                     <button
-                      onClick={() => handleDecision(project.id, 'approved')}
+                      onClick={() => handleDecision(inquiryId, 'approved')}
                       className="btn-primary btn-sm"
                       disabled={isProcessing}
                     >
                       {isProcessing ? 'Processing...' : 'Approve'}
                     </button>
                     <button
-                      onClick={() => handleDecision(project.id, 'rejected')}
+                      onClick={() => handleDecision(inquiryId, 'rejected')}
                       className="btn-danger btn-sm"
                       disabled={isProcessing}
                     >
