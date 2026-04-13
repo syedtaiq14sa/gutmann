@@ -39,6 +39,7 @@ const SLA_HOURS = {
 
 const TERMINAL_STATUSES = ['approved', 'rejected', 'supply_chain'];
 const PROJECT_VIEW_STORAGE_KEY = 'project-details:last-open';
+const COMPLETED_CHECKMARK = '✓';
 
 const getStageDraftStorageKey = (id, status) => `project-stage-draft:${id}:${status || 'unknown'}`;
 const getQcModalStorageKey = (id) => `project-qc-modal-open:${id}`;
@@ -130,11 +131,24 @@ const STAGE_SUB_STEPS = {
   ]
 };
 
-const createSubStepIndexState = () =>
+const createInitialSubStepState = () =>
   WORKFLOW_STAGES.reduce((acc, stage) => {
     acc[stage.key] = 0;
     return acc;
   }, {});
+
+const clampSubStepIndex = (stageKey, index) => {
+  const maxIndex = (STAGE_SUB_STEPS[stageKey]?.length || 1) - 1;
+  return Math.min(Math.max(index, 0), Math.max(maxIndex, 0));
+};
+
+const getSubStepState = (stageState, index, activeIndex) => {
+  if (stageState === 'completed') return 'completed';
+  if (stageState === 'pending') return 'pending';
+  if (index < activeIndex) return 'completed';
+  if (index === activeIndex) return 'active';
+  return 'pending';
+};
 
 const createStageInputState = (status) => {
   const requirements = STAGE_REQUIREMENTS[status];
@@ -206,7 +220,7 @@ function ProjectDetails() {
   const [stageInput, setStageInput] = useState(createStageInputState());
   const [validationErrors, setValidationErrors] = useState({});
   const [selectedStageKey, setSelectedStageKey] = useState('');
-  const [selectedSubStepByStage, setSelectedSubStepByStage] = useState(createSubStepIndexState());
+  const [selectedSubStepByStage, setSelectedSubStepByStage] = useState(createInitialSubStepState());
   const checklistRef = useRef(null);
   const estimatedCostRef = useRef(null);
   const finalPriceRef = useRef(null);
@@ -291,7 +305,7 @@ function ProjectDetails() {
 
   useEffect(() => {
     if (!id || !project?.status) return;
-    const defaults = createSubStepIndexState();
+    const defaults = createInitialSubStepState();
     const fallbackStage = WORKFLOW_STAGES.find(stage => stage.key === project.status)?.key || WORKFLOW_STAGES[0].key;
     try {
       const saved = localStorage.getItem(getWizardUiStorageKey(id));
@@ -306,10 +320,9 @@ function ProjectDetails() {
         : fallbackStage;
       const hydratedSubSteps = { ...defaults };
       Object.keys(hydratedSubSteps).forEach((stageKey) => {
-        const maxIndex = (STAGE_SUB_STEPS[stageKey]?.length || 1) - 1;
         const requested = Number(parsed?.selectedSubStepByStage?.[stageKey]);
         hydratedSubSteps[stageKey] = Number.isFinite(requested)
-          ? Math.min(Math.max(requested, 0), Math.max(maxIndex, 0))
+          ? clampSubStepIndex(stageKey, requested)
           : 0;
       });
       setSelectedStageKey(nextStage);
@@ -486,23 +499,23 @@ function ProjectDetails() {
 
   const currentRank = STAGE_PROGRESS_ORDER.indexOf(project?.status);
   const viewedStageKey = selectedStageKey || project?.status || WORKFLOW_STAGES[0].key;
+  const viewedStage = WORKFLOW_STAGES.find(stage => stage.key === viewedStageKey);
   const viewedStageRank = STAGE_PROGRESS_ORDER.indexOf(viewedStageKey);
   const viewedStageState = viewedStageRank < currentRank ? 'completed' : viewedStageRank === currentRank ? 'active' : 'pending';
   const viewedSubSteps = STAGE_SUB_STEPS[viewedStageKey] || [];
-  const selectedSubStepIndex = Math.min(
-    Math.max(selectedSubStepByStage[viewedStageKey] ?? 0, 0),
-    Math.max(viewedSubSteps.length - 1, 0)
-  );
+  const selectedSubStepIndex = clampSubStepIndex(viewedStageKey, selectedSubStepByStage[viewedStageKey] ?? 0);
   const selectedSubStep = viewedSubSteps[selectedSubStepIndex] || null;
   const stageNumber = Math.max(WORKFLOW_STAGES.findIndex(stage => stage.key === viewedStageKey) + 1, 1);
   const isViewingActiveWorkflowStage = viewedStageKey === project?.status;
+  const shouldShowStageForm = Boolean(
+    isViewingActiveWorkflowStage && selectedSubStep?.key === 'stage_form' && canActOnStage && stageRequirements
+  );
   const quotation = project?.quotation || project?.quotations?.[0];
   const overallTurnaroundEnd = TERMINAL_STATUSES.includes(project?.status) ? project?.updated_at : null;
 
   const updateSubStepIndex = (stageKey, nextIndex) => {
     setSelectedSubStepByStage((prev) => {
-      const maxIndex = (STAGE_SUB_STEPS[stageKey]?.length || 1) - 1;
-      const clamped = Math.min(Math.max(nextIndex, 0), Math.max(maxIndex, 0));
+      const clamped = clampSubStepIndex(stageKey, nextIndex);
       if (prev[stageKey] === clamped) return prev;
       return { ...prev, [stageKey]: clamped };
     });
@@ -510,7 +523,7 @@ function ProjectDetails() {
 
   const handleStageSelect = (stageKey) => {
     setSelectedStageKey(stageKey);
-    if (typeof selectedSubStepByStage[stageKey] !== 'number') {
+    if (selectedSubStepByStage[stageKey] === undefined) {
       updateSubStepIndex(stageKey, 0);
     }
   };
@@ -540,6 +553,8 @@ function ProjectDetails() {
             const stageRank = STAGE_PROGRESS_ORDER.indexOf(stage.key);
             const stageState = stageRank < currentRank ? 'completed' : stageRank === currentRank ? 'active' : 'pending';
             const isSelected = viewedStageKey === stage.key;
+            const mainStepMarker = stageState === 'completed' ? COMPLETED_CHECKMARK : index + 1;
+            const mainStepMarkerLabel = stageState === 'completed' ? `${stage.label} completed` : `${stage.label}, step ${index + 1}`;
             return (
               <button
                 type="button"
@@ -548,7 +563,9 @@ function ProjectDetails() {
                 onClick={() => handleStageSelect(stage.key)}
               >
                 <div className="wizard-main-step-header">
-                  <span className="wizard-main-step-count">{stageState === 'completed' ? '✓' : index + 1}</span>
+                  <span className="wizard-main-step-count" aria-label={mainStepMarkerLabel}>
+                    {mainStepMarker}
+                  </span>
                   <span className="wizard-main-step-title">{stage.label}</span>
                 </div>
                 <div className="wizard-main-step-subtext">
@@ -575,18 +592,14 @@ function ProjectDetails() {
 
         <div className="wizard-content-layout">
           <aside className="wizard-substep-panel" role="navigation" aria-label="Sub-steps">
-            <h3>{stageNumber}. Configure {WORKFLOW_STAGES.find(stage => stage.key === viewedStageKey)?.label || 'Stage'}</h3>
+            <h3>{stageNumber}. Configure {viewedStage?.label || 'Stage'}</h3>
             <div className="wizard-substep-list">
               {viewedSubSteps.map((subStep, index) => {
-                const subState = viewedStageState === 'completed'
-                  ? 'completed'
-                  : viewedStageState === 'pending'
-                    ? 'pending'
-                    : index < selectedSubStepIndex
-                      ? 'completed'
-                      : index === selectedSubStepIndex
-                        ? 'active'
-                        : 'pending';
+                const subState = getSubStepState(viewedStageState, index, selectedSubStepIndex);
+                const subStepMarker = subState === 'completed' ? COMPLETED_CHECKMARK : index + 1;
+                const subStepMarkerLabel = subState === 'completed'
+                  ? `${subStep.title} completed`
+                  : `${subStep.title}, sub-step ${index + 1}`;
                 return (
                   <button
                     key={subStep.key}
@@ -595,7 +608,9 @@ function ProjectDetails() {
                     onClick={() => handleSubStepSelect(index)}
                     disabled={viewedStageState === 'pending'}
                   >
-                    <span className="wizard-substep-marker">{subState === 'completed' ? '✓' : index + 1}</span>
+                    <span className="wizard-substep-marker" aria-label={subStepMarkerLabel}>
+                      {subStepMarker}
+                    </span>
                     <span className="wizard-substep-copy">
                       <strong>{subStep.title}</strong>
                       <small>{subStep.description}</small>
@@ -618,7 +633,7 @@ function ProjectDetails() {
             </div>
 
             <div className="wizard-panel-card">
-              {isViewingActiveWorkflowStage && selectedSubStep?.key === 'stage_form' && canActOnStage && stageRequirements ? (
+              {shouldShowStageForm ? (
                 <>
                   <h3>Mandatory Checklist &amp; Feedback</h3>
                   {Object.keys(validationErrors).length > 0 && (
