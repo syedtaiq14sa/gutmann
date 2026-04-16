@@ -396,6 +396,7 @@ function ProjectDetails() {
   const finalPriceRef = useRef(null);
   const clientResponseRef = useRef(null);
   const feedbackRef = useRef(null);
+  const technicalSignoffRef = useRef(null);
   const previousStatusRef = useRef(null);
 
   useEffect(() => {
@@ -619,7 +620,8 @@ function ProjectDetails() {
       estimated_cost: estimatedCostRef,
       final_price: finalPriceRef,
       client_response: clientResponseRef,
-      feedback: feedbackRef
+      feedback: feedbackRef,
+      technical_signoff: technicalSignoffRef
     };
     const target = fieldRefs[fieldName]?.current;
     if (!target) return;
@@ -632,11 +634,21 @@ function ProjectDetails() {
   const validateStageAction = (mode = 'full') => {
     const errors = {};
     const requirement = BACKEND_STAGE_REQUIREMENTS[project?.status];
+    const computedStagePayload = buildStagePayload();
+    const effectiveChecklist = Object.keys(computedStagePayload?.checklist || {}).length > 0
+      ? computedStagePayload.checklist
+      : stageInput.checklist;
+    const effectiveFeedback = typeof computedStagePayload?.feedback === 'string'
+      ? computedStagePayload.feedback
+      : stageInput.feedback;
+    const effectiveEstimatedCost = computedStagePayload?.estimated_cost ?? stageInput.estimated_cost;
+    const effectiveFinalPrice = computedStagePayload?.final_price ?? stageInput.final_price;
+
     if (requirement) {
-      const checklistValid = requirement.checklist.every(item => stageInput.checklist[item.key]);
-      const feedbackValid = stageInput.feedback.trim().length > 0;
-      const estimatedCostNumber = Number(stageInput.estimated_cost);
-      const finalPriceNumber = Number(stageInput.final_price);
+      const checklistValid = requirement.checklist.every(item => effectiveChecklist[item.key]);
+      const feedbackValid = String(effectiveFeedback || '').trim().length > 0;
+      const estimatedCostNumber = Number(effectiveEstimatedCost);
+      const finalPriceNumber = Number(effectiveFinalPrice);
 
       if (mode !== 'feedbackOnly' && !checklistValid) {
         errors.checklist = 'Please complete all checklist items.';
@@ -827,6 +839,20 @@ function ProjectDetails() {
   const selectedSubStep = viewedSubSteps[selectedSubStepIndex] || null;
   const stageNumber = Math.max(WORKFLOW_STAGES.findIndex(stage => stage.key === viewedStageKey) + 1, 1);
   const isViewingActiveWorkflowStage = viewedStageKey === project?.status;
+  const isLastViewedSubStep = selectedSubStepIndex >= viewedSubSteps.length - 1;
+  const shouldSubmitTechnicalStage = Boolean(
+    isViewingActiveWorkflowStage
+    && viewedStageKey === 'technical_review'
+    && user?.role === 'technical'
+    && isLastViewedSubStep
+  );
+  const handleSubStepPrimaryAction = () => {
+    if (shouldSubmitTechnicalStage) {
+      handleActionClick('estimation');
+      return;
+    }
+    handleSubStepSelect(selectedSubStepIndex + 1);
+  };
   const isCustomStage = ['qc_review', 'technical_review', 'estimation', 'ceo_approval'].includes(viewedStageKey);
   const shouldShowStageForm = Boolean(isViewingActiveWorkflowStage && canActOnStage && stageRequirements);
   const quotation = project?.quotation || project?.quotations?.[0];
@@ -1082,12 +1108,12 @@ function ProjectDetails() {
         );
       }
       return (
-        <>
-          <div className="form-row wizard-form-grid">
-            <div className="form-group"><label>Authorized by - Full Name</label><input value={stageInput.technicalSignoff?.authorized_name || ''} onChange={(e) => setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, authorized_name: e.target.value } }))} /></div>
-            <div className="form-group"><label>Designation</label><select value={stageInput.technicalSignoff?.designation || ''} onChange={(e) => setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, designation: e.target.value } }))}><option value="">Select</option><option>Senior Engineer</option><option>Technical Manager</option><option>Director of Engineering</option></select></div>
-            <div className="form-group"><label>Department</label><input value={stageInput.technicalSignoff?.department || ''} onChange={(e) => setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, department: e.target.value } }))} /></div>
-          </div>
+          <>
+            <div className="form-row wizard-form-grid">
+              <div className="form-group"><label>Authorized by - Full Name</label><input ref={technicalSignoffRef} value={stageInput.technicalSignoff?.authorized_name || ''} onChange={(e) => setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, authorized_name: e.target.value } }))} /></div>
+              <div className="form-group"><label>Designation</label><select value={stageInput.technicalSignoff?.designation || ''} onChange={(e) => setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, designation: e.target.value } }))}><option value="">Select</option><option>Senior Engineer</option><option>Technical Manager</option><option>Director of Engineering</option></select></div>
+              <div className="form-group"><label>Department</label><input value={stageInput.technicalSignoff?.department || ''} onChange={(e) => setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, department: e.target.value } }))} /></div>
+            </div>
           <div className="form-group"><label>Date</label><input type="date" value={stageInput.technicalSignoff?.date || ''} onChange={(e) => setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, date: e.target.value } }))} /></div>
           <label className="wizard-toggle-item"><span>I confirm all technical documents are verified and accurate</span><span className="wizard-switch"><input type="checkbox" checked={Boolean(stageInput.technicalSignoff?.acknowledged)} onChange={(e) => setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, acknowledged: e.target.checked } }))} /><span className="wizard-switch-slider" /></span></label>
         </>
@@ -1597,10 +1623,10 @@ function ProjectDetails() {
               <button
                 type="button"
                 className="btn-primary"
-                onClick={() => handleSubStepSelect(selectedSubStepIndex + 1)}
-                disabled={viewedStageState === 'pending' || selectedSubStepIndex >= viewedSubSteps.length - 1}
+                onClick={handleSubStepPrimaryAction}
+                disabled={viewedStageState === 'pending' || movingNext || (!shouldSubmitTechnicalStage && isLastViewedSubStep)}
               >
-                Next
+                {shouldSubmitTechnicalStage ? (movingNext ? 'Submitting...' : 'Submit') : 'Next'}
               </button>
             </div>
           </section>
