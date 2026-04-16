@@ -641,8 +641,7 @@ function ProjectDetails() {
       technical_signoff_authorized_name: technicalSignoffRef,
       technical_signoff_designation: technicalSignoffDesignationRef,
       technical_signoff_department: technicalSignoffDepartmentRef,
-      technical_signoff_acknowledged: technicalSignoffAcknowledgementRef,
-      technical_signoff: technicalSignoffRef
+      technical_signoff_acknowledged: technicalSignoffAcknowledgementRef
     };
     const target = fieldRefs[fieldName]?.current;
     if (!target) return;
