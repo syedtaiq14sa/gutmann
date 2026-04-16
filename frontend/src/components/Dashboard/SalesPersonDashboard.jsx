@@ -5,6 +5,8 @@ import InquiryForm from '../Forms/InquiryForm';
 import api from '../../services/api';
 import '../../styles/dashboard.css';
 
+const DEFAULT_QUERY_LIMIT = 100;
+
 function SalesPersonDashboard() {
   const navigate = useNavigate();
   const { user } = useSelector(state => state.auth);
@@ -19,7 +21,7 @@ function SalesPersonDashboard() {
   const fetchQueries = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/inquiries', { params: { limit: 100 } });
+      const response = await api.get('/inquiries', { params: { limit: DEFAULT_QUERY_LIMIT } });
       const list = response.data?.data || [];
       setQueries(list);
     } catch (err) {
