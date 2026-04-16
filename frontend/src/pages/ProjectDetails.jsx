@@ -43,6 +43,7 @@ const SLA_HOURS = {
 const TERMINAL_STATUSES = ['approved', 'rejected', 'supply_chain'];
 const PROJECT_VIEW_STORAGE_KEY = 'project-details:last-open';
 const COMPLETED_CHECKMARK = '✓';
+const VARIANCE_THRESHOLD_PERCENT = 10;
 
 const getStageDraftStorageKey = (id, status) => `project-stage-draft:${id}:${status || 'unknown'}`;
 const getQcModalStorageKey = (id) => `project-qc-modal-open:${id}`;
@@ -612,7 +613,7 @@ function ProjectDetails() {
     const errors = {};
     const requirement = BACKEND_STAGE_REQUIREMENTS[project?.status];
     if (requirement) {
-      const checklistValid = requirement.checklist.every(item => stageInput.checklist[item]);
+      const checklistValid = requirement.checklist.every(item => stageInput.checklist[item.key]);
       const feedbackValid = stageInput.feedback.trim().length > 0;
       const estimatedCostNumber = Number(stageInput.estimated_cost);
       const finalPriceNumber = Number(stageInput.final_price);
@@ -640,34 +641,36 @@ function ProjectDetails() {
     }
 
     if (project?.status === 'qc_review' && mode !== 'feedbackOnly') {
-      if (!stageInput.qcSignoff?.reviewer_name?.trim()) errors.feedback = 'Reviewer name is required.';
-      if (!stageInput.qcSignoff?.designation?.trim()) errors.feedback = 'Designation is required.';
-      if (!stageInput.qcSignoff?.acknowledged) errors.feedback = 'Acknowledgement is required.';
-      if (!stageInput.qcRisk?.category) errors.checklist = 'Risk category is required.';
+      if (!stageInput.qcSignoff?.reviewer_name?.trim()) errors.feedback = errors.feedback || 'Reviewer name is required.';
+      if (!stageInput.qcSignoff?.designation?.trim()) errors.feedback = errors.feedback || 'Designation is required.';
+      if (!stageInput.qcSignoff?.acknowledged) errors.feedback = errors.feedback || 'Acknowledgement is required.';
+      if (!stageInput.qcRisk?.category) errors.checklist = errors.checklist || 'Risk category is required.';
     }
 
     if (project?.status === 'technical_review' && mode !== 'feedbackOnly') {
       const signoff = stageInput.technicalSignoff || {};
-      if (!signoff.authorized_name?.trim() || !signoff.designation || !signoff.department?.trim() || !signoff.acknowledged) {
-        errors.feedback = 'Complete technical sign-off fields before proceeding.';
-      }
+      if (!signoff.authorized_name?.trim()) errors.feedback = errors.feedback || 'Technical sign-off authorized by name is required.';
+      if (!signoff.designation) errors.feedback = errors.feedback || 'Technical sign-off designation is required.';
+      if (!signoff.department?.trim()) errors.feedback = errors.feedback || 'Technical sign-off department is required.';
+      if (!signoff.acknowledged) errors.feedback = errors.feedback || 'Technical sign-off acknowledgement is required.';
     }
 
     if (project?.status === 'estimation' && mode !== 'feedbackOnly') {
       const signoff = stageInput.estimationSignoff || {};
-      if (!signoff.estimated_by_name?.trim() || !signoff.designation || !signoff.department?.trim() || !signoff.acknowledged) {
-        errors.feedback = 'Complete estimation sign-off fields before proceeding.';
-      }
+      if (!signoff.estimated_by_name?.trim()) errors.feedback = errors.feedback || 'Estimator full name is required.';
+      if (!signoff.designation) errors.feedback = errors.feedback || 'Estimator designation is required.';
+      if (!signoff.department?.trim()) errors.feedback = errors.feedback || 'Estimator department is required.';
+      if (!signoff.acknowledged) errors.feedback = errors.feedback || 'Estimation acknowledgement is required.';
     }
 
     if (project?.status === 'ceo_approval' && mode !== 'feedbackOnly') {
       const decision = stageInput.ceoDecision || {};
       const signoff = stageInput.ceoSignoff || {};
-      if (!decision.decision) errors.client_response = 'Decision selection is required.';
-      if (!decision.mandatory_remarks?.trim()) errors.feedback = 'Mandatory remarks are required.';
-      if (!signoff.approved_by_name?.trim() || !signoff.designation || !signoff.acknowledged) {
-        errors.checklist = 'Complete CEO sign-off fields before final action.';
-      }
+      if (!decision.decision) errors.client_response = errors.client_response || 'Decision selection is required.';
+      if (!decision.mandatory_remarks?.trim()) errors.feedback = errors.feedback || 'Mandatory remarks are required.';
+      if (!signoff.approved_by_name?.trim()) errors.checklist = errors.checklist || 'CEO sign-off full name is required.';
+      if (!signoff.designation) errors.checklist = errors.checklist || 'CEO sign-off designation is required.';
+      if (!signoff.acknowledged) errors.checklist = errors.checklist || 'CEO sign-off acknowledgement is required.';
     }
 
     setValidationErrors(errors);
@@ -848,7 +851,7 @@ function ProjectDetails() {
             <div className="wizard-summary-item"><span>Contact Person</span><strong>{project.client_email || project.client_phone || '—'}</strong></div>
             <div className="wizard-summary-item"><span>Project Type</span><strong>{project.project_type || '—'}</strong></div>
             <div className="wizard-summary-item"><span>Priority Level</span><strong>{project.priority || '—'}</strong></div>
-            <div className="wizard-summary-item"><span>Expected Delivery Date</span><strong>{stageInput.qcSignoff?.date || '—'}</strong></div>
+            <div className="wizard-summary-item"><span>Expected Delivery Date</span><strong>{project.expected_delivery_date ? formatDateTime(project.expected_delivery_date) : '—'}</strong></div>
             <div className="wizard-summary-item"><span>Inquiry Submission Date</span><strong>{formatDateTime(project.created_at)}</strong></div>
             <div className="wizard-summary-item"><span>Inquiry ID</span><strong>{project.inquiry_number || project.id}</strong></div>
           </div>
@@ -1048,7 +1051,11 @@ function ProjectDetails() {
       if (selectedSubStep?.key === 'comparison_check') {
         const row = (stageInput.comparisonRows || [])[0] || { project_name: '', year: '', original_cost: '', remarks: '' };
         const variance = Number(row.original_cost) > 0 ? (((getEstimationTotalCost() - Number(row.original_cost)) / Number(row.original_cost)) * 100) : 0;
-        const status = variance > 10 ? 'Over Budget' : variance < -10 ? 'Under Budget' : 'Within Range';
+        const status = variance > VARIANCE_THRESHOLD_PERCENT
+          ? 'Over Budget'
+          : variance < -VARIANCE_THRESHOLD_PERCENT
+            ? 'Under Budget'
+            : 'Within Range';
         return (
           <>
             <div className="form-row wizard-form-grid">
