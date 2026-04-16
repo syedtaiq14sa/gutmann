@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import api from '../services/api';
 import QCReviewForm from '../components/Forms/QCReviewForm';
-import gutmannLogo from '../assets/Gutmann Logo.png';
+import gutmannLogo from '../assets/gutmann-logo.png';
 
 const WORKFLOW_STAGES = [
   { key: 'qc_review', label: 'QC', topNav: true },

@@ -77,6 +77,14 @@ function SalesPersonDashboard() {
     setShowInquiryForm(false);
   };
 
+  const handleViewQuery = (query) => {
+    if (!query?.id) {
+      setMessage({ type: 'error', text: 'Unable to open workflow for this query' });
+      return;
+    }
+    navigate(`/projects/${query.id}`);
+  };
+
   if (loading) return <div className="loading-spinner">Loading...</div>;
 
   const activeQueries = queries.filter((q) => !['approved', 'supply_chain', 'rejected'].includes(q.status));
@@ -151,7 +159,7 @@ function SalesPersonDashboard() {
                 <td><span className={`status-badge status-${query.status}`}>{query.status?.replace('_', ' ')}</span></td>
                 <td>{new Date(query.created_at).toLocaleDateString()}</td>
                 <td className="query-action-buttons">
-                  <button onClick={() => navigate(`/projects/${query.id}`)} className="btn-primary btn-sm">View</button>
+                  <button onClick={() => handleViewQuery(query)} className="btn-primary btn-sm">View</button>
                   <button onClick={() => openEditModal(query)} className="btn-secondary btn-sm">Edit</button>
                   <button
                     onClick={() => handleDeleteQuery(query)}
