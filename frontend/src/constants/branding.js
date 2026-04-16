@@ -1,3 +1,3 @@
-import gutmannLogo from '../assets/gutmann-logo.png';
+import gutmannLogo from '../assets/Gutmann Logo.png';
 
 export const GUTMANN_LOGO_URL = gutmannLogo;

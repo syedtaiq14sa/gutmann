@@ -96,7 +96,8 @@
   margin-top: 8px;
 }
 
-.error-message {
+.error-message,
+.form-error {
   background: #ffebee;
   color: #c62828;
   padding: 10px 14px;
