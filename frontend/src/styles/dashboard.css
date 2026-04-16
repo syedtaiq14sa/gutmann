@@ -787,46 +787,23 @@
 
 .gutmann-logo {
   display: inline-grid;
-  gap: 8px;
+  gap: 4px;
   justify-items: center;
-  color: #e11d2e;
 }
 
 .gutmann-logo.compact {
   justify-items: start;
 }
 
-.gutmann-logo-mark {
-  position: relative;
-  width: 44px;
-  height: 36px;
-  display: inline-block;
+.gutmann-logo-image {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
+  display: block;
 }
 
-.gutmann-logo-mark-main {
-  position: absolute;
-  inset: 0;
-  border: 8px solid #e11d2e;
-  border-right-width: 12px;
-  border-bottom-width: 12px;
-  border-radius: 2px;
-}
-
-.gutmann-logo-mark-inner {
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  right: 2px;
-  bottom: 2px;
-  background: #e11d2e;
-  border-radius: 2px;
-}
-
-.gutmann-logo-text {
-  font-size: 12px;
-  letter-spacing: 5px;
-  font-weight: 800;
-  color: #e11d2e;
+.gutmann-logo.compact .gutmann-logo-image {
+  height: 32px;
 }
 
 .wizard-main-stepper {

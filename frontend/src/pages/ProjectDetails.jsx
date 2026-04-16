@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import api from '../services/api';
 import QCReviewForm from '../components/Forms/QCReviewForm';
+import gutmannLogo from '../assets/Gutmann Logo.png';
 
 const WORKFLOW_STAGES = [
   { key: 'qc_review', label: 'QC', topNav: true },
@@ -114,11 +115,7 @@ const DEPARTMENT_CHECKLIST_CARDS = WORKFLOW_STAGES.reduce((cards, stage) => {
 function GutmannLogo({ compact = false }) {
   return (
     <div className={`gutmann-logo${compact ? ' compact' : ''}`} aria-label="Gutmann">
-      <span className="gutmann-logo-mark" aria-hidden="true">
-        <span className="gutmann-logo-mark-main" />
-        <span className="gutmann-logo-mark-inner" />
-      </span>
-      <span className="gutmann-logo-text">GUTMANN</span>
+      <img className="gutmann-logo-image" src={gutmannLogo} alt="Gutmann logo" />
     </div>
   );
 }
