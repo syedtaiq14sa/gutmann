@@ -20,7 +20,7 @@ function SalesPersonDashboard() {
     try {
       setLoading(true);
       const response = await api.get('/inquiries', { params: { limit: 100 } });
-      const list = (response.data?.data || []).filter((query) => query.created_by === user?.id);
+      const list = response.data?.data || [];
       setQueries(list);
     } catch (err) {
       setMessage({ type: 'error', text: err.response?.data?.error || 'Failed to load queries' });

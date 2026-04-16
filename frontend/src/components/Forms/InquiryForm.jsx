@@ -30,7 +30,7 @@ function InquiryForm({ onSuccess, onCancel, mode = 'create', initialData = {} })
     if (!formData.client_name.trim()) errors.client_name = 'Client name is required';
     if (!formData.client_email.trim()) {
       errors.client_email = 'Client email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.client_email.trim())) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(formData.client_email.trim())) {
       errors.client_email = 'Enter a valid email address';
     }
     if (!formData.project_type.trim()) errors.project_type = 'Project type is required';

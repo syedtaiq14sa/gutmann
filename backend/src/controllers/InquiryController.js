@@ -67,7 +67,7 @@ const validateAdvanceRequirements = (currentStatus, newStatus, payload = {}) => 
   return null;
 };
 
-const canSalespersonManageInquiry = (inquiry, user) => {
+const hasInquiryAccess = (inquiry, user) => {
   if (user.role !== 'salesperson') return true;
   return inquiry.created_by === user.id;
 };
@@ -194,7 +194,7 @@ const getInquiryById = async (req, res) => {
     if (error || !data) {
       return res.status(404).json({ error: 'Inquiry not found' });
     }
-    if (!canSalespersonManageInquiry(data, req.user)) {
+    if (!hasInquiryAccess(data, req.user)) {
       return res.status(403).json({ error: 'You can only access your own queries' });
     }
 
@@ -223,7 +223,7 @@ const updateInquiry = async (req, res) => {
     if (fetchError || !inquiry) {
       return res.status(404).json({ error: 'Inquiry not found' });
     }
-    if (!canSalespersonManageInquiry(inquiry, req.user)) {
+    if (!hasInquiryAccess(inquiry, req.user)) {
       return res.status(403).json({ error: 'You can only edit your own queries' });
     }
 
@@ -270,7 +270,7 @@ const deleteInquiry = async (req, res) => {
     if (fetchError || !inquiry) {
       return res.status(404).json({ error: 'Inquiry not found' });
     }
-    if (!canSalespersonManageInquiry(inquiry, req.user)) {
+    if (!hasInquiryAccess(inquiry, req.user)) {
       return res.status(403).json({ error: 'You can only delete your own queries' });
     }
 
