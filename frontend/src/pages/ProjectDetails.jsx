@@ -641,40 +641,40 @@ function ProjectDetails() {
     }
 
     if (project?.status === 'qc_review' && mode !== 'feedbackOnly') {
-      if (!stageInput.qcSignoff?.reviewer_name?.trim()) errors.feedback = errors.feedback || 'Reviewer name is required.';
-      if (!stageInput.qcSignoff?.designation?.trim()) errors.feedback = errors.feedback || 'Designation is required.';
-      if (!stageInput.qcSignoff?.acknowledged) errors.feedback = errors.feedback || 'Acknowledgement is required.';
-      if (!stageInput.qcRisk?.category) errors.checklist = errors.checklist || 'Risk category is required.';
+      if (!stageInput.qcSignoff?.reviewer_name?.trim()) errors.qc_signoff = errors.qc_signoff || 'Reviewer name is required.';
+      if (!stageInput.qcSignoff?.designation?.trim()) errors.qc_signoff = errors.qc_signoff || 'Designation is required.';
+      if (!stageInput.qcSignoff?.acknowledged) errors.qc_signoff = errors.qc_signoff || 'Acknowledgement is required.';
+      if (!stageInput.qcRisk?.category) errors.qc_risk = errors.qc_risk || 'Risk category is required.';
     }
 
     if (project?.status === 'technical_review' && mode !== 'feedbackOnly') {
       const signoff = stageInput.technicalSignoff || {};
-      if (!signoff.authorized_name?.trim()) errors.feedback = errors.feedback || 'Technical sign-off authorized by name is required.';
-      if (!signoff.designation) errors.feedback = errors.feedback || 'Technical sign-off designation is required.';
-      if (!signoff.department?.trim()) errors.feedback = errors.feedback || 'Technical sign-off department is required.';
-      if (!signoff.acknowledged) errors.feedback = errors.feedback || 'Technical sign-off acknowledgement is required.';
+      if (!signoff.authorized_name?.trim()) errors.technical_signoff = errors.technical_signoff || 'Technical sign-off authorized by name is required.';
+      if (!signoff.designation) errors.technical_signoff = errors.technical_signoff || 'Technical sign-off designation is required.';
+      if (!signoff.department?.trim()) errors.technical_signoff = errors.technical_signoff || 'Technical sign-off department is required.';
+      if (!signoff.acknowledged) errors.technical_signoff = errors.technical_signoff || 'Technical sign-off acknowledgement is required.';
     }
 
     if (project?.status === 'estimation' && mode !== 'feedbackOnly') {
       const signoff = stageInput.estimationSignoff || {};
-      if (!signoff.estimated_by_name?.trim()) errors.feedback = errors.feedback || 'Estimator full name is required.';
-      if (!signoff.designation) errors.feedback = errors.feedback || 'Estimator designation is required.';
-      if (!signoff.department?.trim()) errors.feedback = errors.feedback || 'Estimator department is required.';
-      if (!signoff.acknowledged) errors.feedback = errors.feedback || 'Estimation acknowledgement is required.';
+      if (!signoff.estimated_by_name?.trim()) errors.estimation_signoff = errors.estimation_signoff || 'Estimator full name is required.';
+      if (!signoff.designation) errors.estimation_signoff = errors.estimation_signoff || 'Estimator designation is required.';
+      if (!signoff.department?.trim()) errors.estimation_signoff = errors.estimation_signoff || 'Estimator department is required.';
+      if (!signoff.acknowledged) errors.estimation_signoff = errors.estimation_signoff || 'Estimation acknowledgement is required.';
     }
 
     if (project?.status === 'ceo_approval' && mode !== 'feedbackOnly') {
       const decision = stageInput.ceoDecision || {};
       const signoff = stageInput.ceoSignoff || {};
-      if (!decision.decision) errors.client_response = errors.client_response || 'Decision selection is required.';
-      if (!decision.mandatory_remarks?.trim()) errors.feedback = errors.feedback || 'Mandatory remarks are required.';
-      if (!signoff.approved_by_name?.trim()) errors.checklist = errors.checklist || 'CEO sign-off full name is required.';
-      if (!signoff.designation) errors.checklist = errors.checklist || 'CEO sign-off designation is required.';
-      if (!signoff.acknowledged) errors.checklist = errors.checklist || 'CEO sign-off acknowledgement is required.';
+      if (!decision.decision) errors.ceo_decision = errors.ceo_decision || 'Decision selection is required.';
+      if (!decision.mandatory_remarks?.trim()) errors.ceo_decision = errors.ceo_decision || 'Mandatory remarks are required.';
+      if (!signoff.approved_by_name?.trim()) errors.ceo_signoff = errors.ceo_signoff || 'CEO sign-off full name is required.';
+      if (!signoff.designation) errors.ceo_signoff = errors.ceo_signoff || 'CEO sign-off designation is required.';
+      if (!signoff.acknowledged) errors.ceo_signoff = errors.ceo_signoff || 'CEO sign-off acknowledgement is required.';
     }
 
     setValidationErrors(errors);
-    const firstInvalidField = ['checklist', 'estimated_cost', 'final_price', 'client_response', 'feedback']
+    const firstInvalidField = ['checklist', 'estimated_cost', 'final_price', 'client_response', 'feedback', 'qc_signoff', 'qc_risk', 'technical_signoff', 'estimation_signoff', 'ceo_decision', 'ceo_signoff']
       .find((field) => errors[field]);
     if (firstInvalidField) {
       focusAndScrollToField(firstInvalidField);
@@ -705,7 +705,7 @@ function ProjectDetails() {
       const checklist = {
         requirements_reviewed: Boolean(stageInput.scope?.description?.trim() && stageInput.scope?.work_type && stageInput.scope?.complexity),
         feasibility_checked: Boolean(stageInput.wind?.result_status && stageInput.structural?.verification_status),
-        risk_assessed: Boolean(stageInput.wind?.remarks?.trim() || stageInput.scope?.special_conditions?.trim() || stageInput.design?.description?.trim())
+        risk_assessed: Boolean(stageInput.wind?.remarks?.trim() || stageInput.scope?.special_conditions?.trim())
       };
       return {
         checklist,
@@ -720,7 +720,7 @@ function ProjectDetails() {
       const checklist = {
         costing_completed: (stageInput.costRows || []).some((row) => row.description?.trim() && Number(row.quantity) > 0 && Number(row.unit_cost) > 0),
         quotation_reviewed: (stageInput.vendorRows || []).some((row) => row.vendor_name?.trim() && Number(row.amount) > 0),
-        profitability_verified: Number(stageInput.margin?.profit_margin) >= 0
+        profitability_verified: stageInput.margin?.profit_margin !== '' && Number(stageInput.margin?.profit_margin) >= 0
       };
       return {
         checklist,
@@ -748,9 +748,9 @@ function ProjectDetails() {
       return {
         checklist: {
           documents_complete: Object.values(stageInput.documents || {}).every((doc) => doc.status === 'received' || doc.status === 'n_a'),
-          site_survey_required: false,
-          client_info_verified: true,
-          scope_clear: true
+          site_survey_required: Boolean(stageInput.documents?.site_photos?.status === 'missing'),
+          client_info_verified: Boolean(project?.client_name && project?.location && (project?.client_email || project?.client_phone)),
+          scope_clear: Boolean(project?.project_type && project?.project_description)
         },
         feedback: stageInput.qcRisk?.description || '',
         decision: 'approved'
@@ -1050,12 +1050,15 @@ function ProjectDetails() {
       }
       if (selectedSubStep?.key === 'comparison_check') {
         const row = (stageInput.comparisonRows || [])[0] || { project_name: '', year: '', original_cost: '', remarks: '' };
-        const variance = Number(row.original_cost) > 0 ? (((getEstimationTotalCost() - Number(row.original_cost)) / Number(row.original_cost)) * 100) : 0;
-        const status = variance > VARIANCE_THRESHOLD_PERCENT
-          ? 'Over Budget'
-          : variance < -VARIANCE_THRESHOLD_PERCENT
-            ? 'Under Budget'
-            : 'Within Range';
+        const hasReference = Number(row.original_cost) > 0;
+        const variance = hasReference ? (((getEstimationTotalCost() - Number(row.original_cost)) / Number(row.original_cost)) * 100) : 0;
+        const status = !hasReference
+          ? 'No Reference Data'
+          : variance > VARIANCE_THRESHOLD_PERCENT
+            ? 'Over Budget'
+            : variance < -VARIANCE_THRESHOLD_PERCENT
+              ? 'Under Budget'
+              : 'Within Range';
         return (
           <>
             <div className="form-row wizard-form-grid">
