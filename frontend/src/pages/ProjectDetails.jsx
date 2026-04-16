@@ -397,6 +397,15 @@ function ProjectDetails() {
   const clientResponseRef = useRef(null);
   const feedbackRef = useRef(null);
   const technicalSignoffRef = useRef(null);
+  const scopeDescriptionRef = useRef(null);
+  const scopeWorkTypeRef = useRef(null);
+  const scopeComplexityRef = useRef(null);
+  const windResultStatusRef = useRef(null);
+  const structuralVerificationStatusRef = useRef(null);
+  const technicalSignoffDesignationRef = useRef(null);
+  const technicalSignoffDepartmentRef = useRef(null);
+  const technicalSignoffAcknowledgedRef = useRef(null);
+  const technicalFeedbackRef = useRef(null);
   const previousStatusRef = useRef(null);
 
   useEffect(() => {
@@ -621,7 +630,17 @@ function ProjectDetails() {
       final_price: finalPriceRef,
       client_response: clientResponseRef,
       feedback: feedbackRef,
-      technical_signoff: technicalSignoffRef
+      technical_signoff: technicalSignoffRef,
+      technical_scope_description: scopeDescriptionRef,
+      technical_scope_work_type: scopeWorkTypeRef,
+      technical_scope_complexity: scopeComplexityRef,
+      technical_wind_result_status: windResultStatusRef,
+      technical_structural_verification_status: structuralVerificationStatusRef,
+      technical_signoff_authorized_name: technicalSignoffRef,
+      technical_signoff_designation: technicalSignoffDesignationRef,
+      technical_signoff_department: technicalSignoffDepartmentRef,
+      technical_signoff_acknowledged: technicalSignoffAcknowledgedRef,
+      technical_feedback: technicalFeedbackRef
     };
     const target = fieldRefs[fieldName]?.current;
     if (!target) return;
@@ -634,15 +653,15 @@ function ProjectDetails() {
   const validateStageAction = (mode = 'full') => {
     const errors = {};
     const requirement = BACKEND_STAGE_REQUIREMENTS[project?.status];
-    const computedStagePayload = buildStagePayload();
-    const effectiveChecklist = Object.keys(computedStagePayload?.checklist || {}).length > 0
-      ? computedStagePayload.checklist
+    const derived = buildStagePayload();
+    const effectiveChecklist = Object.keys(derived?.checklist || {}).length > 0
+      ? derived.checklist
       : stageInput.checklist;
-    const effectiveFeedback = typeof computedStagePayload?.feedback === 'string'
-      ? computedStagePayload.feedback
+    const effectiveFeedback = typeof derived?.feedback === 'string'
+      ? derived.feedback
       : stageInput.feedback;
-    const effectiveEstimatedCost = computedStagePayload?.estimated_cost ?? stageInput.estimated_cost;
-    const effectiveFinalPrice = computedStagePayload?.final_price ?? stageInput.final_price;
+    const effectiveEstimatedCost = derived?.estimated_cost ?? stageInput.estimated_cost;
+    const effectiveFinalPrice = derived?.final_price ?? stageInput.final_price;
 
     if (requirement) {
       const checklistValid = requirement.checklist.every(item => effectiveChecklist[item.key]);
@@ -650,11 +669,11 @@ function ProjectDetails() {
       const estimatedCostNumber = Number(effectiveEstimatedCost);
       const finalPriceNumber = Number(effectiveFinalPrice);
 
-      if (mode !== 'feedbackOnly' && !checklistValid) {
+      if (mode !== 'feedbackOnly' && !checklistValid && project?.status !== 'technical_review') {
         errors.checklist = 'Please complete all checklist items.';
       }
 
-      if ((requirement.requireFeedback || mode === 'feedbackOnly') && !feedbackValid) {
+      if ((requirement.requireFeedback || mode === 'feedbackOnly') && !feedbackValid && project?.status !== 'technical_review') {
         errors.feedback = 'This field is required.';
       }
 
@@ -680,11 +699,82 @@ function ProjectDetails() {
     }
 
     if (project?.status === 'technical_review' && mode !== 'feedbackOnly') {
-      const signoff = stageInput.technicalSignoff || {};
-      if (!signoff.authorized_name?.trim()) errors.technical_signoff = errors.technical_signoff || 'Technical sign-off authorized by name is required.';
-      if (!signoff.designation) errors.technical_signoff = errors.technical_signoff || 'Technical sign-off designation is required.';
-      if (!signoff.department?.trim()) errors.technical_signoff = errors.technical_signoff || 'Technical sign-off department is required.';
-      if (!signoff.acknowledged) errors.technical_signoff = errors.technical_signoff || 'Technical sign-off acknowledgement is required.';
+      const technicalRequiredFields = [
+        {
+          key: 'technical_scope_description',
+          valid: Boolean(stageInput.scope?.description?.trim()),
+          message: 'Project scope description is required.',
+          subStepKey: 'scope_assessment'
+        },
+        {
+          key: 'technical_scope_work_type',
+          valid: Boolean(stageInput.scope?.work_type),
+          message: 'Work type is required.',
+          subStepKey: 'scope_assessment'
+        },
+        {
+          key: 'technical_scope_complexity',
+          valid: Boolean(stageInput.scope?.complexity),
+          message: 'Technical complexity rating is required.',
+          subStepKey: 'scope_assessment'
+        },
+        {
+          key: 'technical_wind_result_status',
+          valid: Boolean(stageInput.wind?.result_status),
+          message: 'Wind load result status is required.',
+          subStepKey: 'wind_load_check'
+        },
+        {
+          key: 'technical_structural_verification_status',
+          valid: Boolean(stageInput.structural?.verification_status),
+          message: 'Structural verification status is required.',
+          subStepKey: 'structural_calculation'
+        },
+        {
+          key: 'technical_signoff_authorized_name',
+          valid: Boolean(stageInput.technicalSignoff?.authorized_name?.trim()),
+          message: 'Technical sign-off authorized by name is required.',
+          subStepKey: 'technical_signoff'
+        },
+        {
+          key: 'technical_signoff_designation',
+          valid: Boolean(stageInput.technicalSignoff?.designation),
+          message: 'Technical sign-off designation is required.',
+          subStepKey: 'technical_signoff'
+        },
+        {
+          key: 'technical_signoff_department',
+          valid: Boolean(stageInput.technicalSignoff?.department?.trim()),
+          message: 'Technical sign-off department is required.',
+          subStepKey: 'technical_signoff'
+        },
+        {
+          key: 'technical_signoff_acknowledged',
+          valid: Boolean(stageInput.technicalSignoff?.acknowledged),
+          message: 'Technical sign-off acknowledgement is required.',
+          subStepKey: 'technical_signoff'
+        }
+      ];
+
+      if ((requirement?.requireFeedback || mode === 'feedbackOnly') && !String(effectiveFeedback || '').trim()) {
+        technicalRequiredFields.push({
+          key: 'technical_feedback',
+          valid: false,
+          message: 'Submittal remarks are required.',
+          subStepKey: 'technical_submittal'
+        });
+      }
+
+      const firstMissingTechnicalField = technicalRequiredFields.find((field) => !field.valid);
+      if (firstMissingTechnicalField) {
+        const technicalSubSteps = STAGE_SUB_STEPS.technical_review || [];
+        const targetIndex = technicalSubSteps.findIndex((step) => step.key === firstMissingTechnicalField.subStepKey);
+        if (targetIndex >= 0) {
+          setSelectedStageKey('technical_review');
+          updateSubStepIndex('technical_review', targetIndex);
+        }
+        errors[firstMissingTechnicalField.key] = firstMissingTechnicalField.message;
+      }
     }
 
     if (project?.status === 'estimation' && mode !== 'feedbackOnly') {
@@ -706,10 +796,34 @@ function ProjectDetails() {
     }
 
     setValidationErrors(errors);
-    const firstInvalidField = ['checklist', 'estimated_cost', 'final_price', 'client_response', 'feedback', 'qc_signoff', 'qc_risk', 'technical_signoff', 'estimation_signoff', 'ceo_decision', 'ceo_signoff']
+    const firstInvalidField = [
+      'technical_scope_description',
+      'technical_scope_work_type',
+      'technical_scope_complexity',
+      'technical_wind_result_status',
+      'technical_structural_verification_status',
+      'technical_feedback',
+      'technical_signoff_authorized_name',
+      'technical_signoff_designation',
+      'technical_signoff_department',
+      'technical_signoff_acknowledged',
+      'checklist',
+      'estimated_cost',
+      'final_price',
+      'client_response',
+      'feedback',
+      'qc_signoff',
+      'qc_risk',
+      'technical_signoff',
+      'estimation_signoff',
+      'ceo_decision',
+      'ceo_signoff'
+    ]
       .find((field) => errors[field]);
     if (firstInvalidField) {
-      focusAndScrollToField(firstInvalidField);
+      window.requestAnimationFrame(() => {
+        focusAndScrollToField(firstInvalidField);
+      });
       return false;
     }
     return true;
@@ -737,7 +851,7 @@ function ProjectDetails() {
       const checklist = {
         requirements_reviewed: Boolean(stageInput.scope?.description?.trim() && stageInput.scope?.work_type && stageInput.scope?.complexity),
         feasibility_checked: Boolean(stageInput.wind?.result_status && stageInput.structural?.verification_status),
-        risk_assessed: Boolean(stageInput.wind?.remarks?.trim() || stageInput.scope?.special_conditions?.trim())
+        risk_assessed: Boolean(stageInput.wind?.result_status || stageInput.structural?.verification_status || stageInput.scope?.special_conditions?.trim())
       };
       return {
         checklist,
@@ -1022,11 +1136,11 @@ function ProjectDetails() {
     if (viewedStageKey === 'technical_review') {
       if (selectedSubStep?.key === 'scope_assessment') {
         return (
-          <>
-            <div className="form-group"><label>Project Scope Description</label><textarea rows={3} value={stageInput.scope?.description || ''} onChange={(e) => setStageInput(prev => ({ ...prev, scope: { ...prev.scope, description: e.target.value } }))} /></div>
+            <>
+            <div className="form-group"><label>Project Scope Description</label><textarea ref={scopeDescriptionRef} rows={3} className={validationErrors.technical_scope_description ? 'input-error' : ''} value={stageInput.scope?.description || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, scope: { ...prev.scope, description: e.target.value } })); clearValidationError('technical_scope_description'); }} />{validationErrors.technical_scope_description && <div className="field-error-text">{validationErrors.technical_scope_description}</div>}</div>
             <div className="form-row wizard-form-grid">
-              <div className="form-group"><label>Work Type</label><select value={stageInput.scope?.work_type || ''} onChange={(e) => setStageInput(prev => ({ ...prev, scope: { ...prev.scope, work_type: e.target.value } }))}><option value="">Select</option><option>Supply Only</option><option>Supply & Install</option><option>Design & Build</option><option>Consultancy</option></select></div>
-              <div className="form-group"><label>Technical Complexity Rating</label><select value={stageInput.scope?.complexity || ''} onChange={(e) => setStageInput(prev => ({ ...prev, scope: { ...prev.scope, complexity: e.target.value } }))}><option value="">Select</option><option>Simple</option><option>Moderate</option><option>Complex</option><option>Critical</option></select></div>
+              <div className="form-group"><label>Work Type</label><select ref={scopeWorkTypeRef} className={validationErrors.technical_scope_work_type ? 'input-error' : ''} value={stageInput.scope?.work_type || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, scope: { ...prev.scope, work_type: e.target.value } })); clearValidationError('technical_scope_work_type'); }}><option value="">Select</option><option>Supply Only</option><option>Supply & Install</option><option>Design & Build</option><option>Consultancy</option></select>{validationErrors.technical_scope_work_type && <div className="field-error-text">{validationErrors.technical_scope_work_type}</div>}</div>
+              <div className="form-group"><label>Technical Complexity Rating</label><select ref={scopeComplexityRef} className={validationErrors.technical_scope_complexity ? 'input-error' : ''} value={stageInput.scope?.complexity || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, scope: { ...prev.scope, complexity: e.target.value } })); clearValidationError('technical_scope_complexity'); }}><option value="">Select</option><option>Simple</option><option>Moderate</option><option>Complex</option><option>Critical</option></select>{validationErrors.technical_scope_complexity && <div className="field-error-text">{validationErrors.technical_scope_complexity}</div>}</div>
               <div className="form-group"><label>Estimated Project Duration</label><input value={stageInput.scope?.duration || ''} onChange={(e) => setStageInput(prev => ({ ...prev, scope: { ...prev.scope, duration: e.target.value } }))} /></div>
             </div>
             <label className="wizard-toggle-item"><span>Site Visit Required</span><span className="wizard-switch"><input type="checkbox" checked={stageInput.scope?.site_visit_required === 'yes'} onChange={(e) => setStageInput(prev => ({ ...prev, scope: { ...prev.scope, site_visit_required: e.target.checked ? 'yes' : 'no' } }))} /><span className="wizard-switch-slider" /></span></label>
@@ -1044,7 +1158,7 @@ function ProjectDetails() {
             </div>
             <div className="form-row wizard-form-grid">
               <div className="form-group"><label>Calculated Wind Pressure</label><input value={stageInput.wind?.wind_pressure || ''} onChange={(e) => setStageInput(prev => ({ ...prev, wind: { ...prev.wind, wind_pressure: e.target.value } }))} /></div>
-              <div className="form-group"><label>Result Status</label><select value={stageInput.wind?.result_status || ''} onChange={(e) => setStageInput(prev => ({ ...prev, wind: { ...prev.wind, result_status: e.target.value } }))}><option value="">Select</option><option>Pass</option><option>Fail</option><option>Requires Review</option></select></div>
+              <div className="form-group"><label>Result Status</label><select ref={windResultStatusRef} className={validationErrors.technical_wind_result_status ? 'input-error' : ''} value={stageInput.wind?.result_status || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, wind: { ...prev.wind, result_status: e.target.value } })); clearValidationError('technical_wind_result_status'); }}><option value="">Select</option><option>Pass</option><option>Fail</option><option>Requires Review</option></select>{validationErrors.technical_wind_result_status && <div className="field-error-text">{validationErrors.technical_wind_result_status}</div>}</div>
               <div className="form-group"><label>Wind Load Calculation Document</label><input type="file" /></div>
             </div>
             <div className="form-group"><label>Remarks</label><textarea rows={3} value={stageInput.wind?.remarks || ''} onChange={(e) => setStageInput(prev => ({ ...prev, wind: { ...prev.wind, remarks: e.target.value } }))} /></div>
@@ -1082,7 +1196,7 @@ function ProjectDetails() {
             </div>
             <div className="form-row wizard-form-grid">
               <div className="form-group"><label>Structural Calculation Document</label><input type="file" /></div>
-              <div className="form-group"><label>Verification Status</label><select value={stageInput.structural?.verification_status || ''} onChange={(e) => setStageInput(prev => ({ ...prev, structural: { ...prev.structural, verification_status: e.target.value } }))}><option value="">Select</option><option>Pending</option><option>Verified</option><option>Rejected</option></select></div>
+              <div className="form-group"><label>Verification Status</label><select ref={structuralVerificationStatusRef} className={validationErrors.technical_structural_verification_status ? 'input-error' : ''} value={stageInput.structural?.verification_status || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, structural: { ...prev.structural, verification_status: e.target.value } })); clearValidationError('technical_structural_verification_status'); }}><option value="">Select</option><option>Pending</option><option>Verified</option><option>Rejected</option></select>{validationErrors.technical_structural_verification_status && <div className="field-error-text">{validationErrors.technical_structural_verification_status}</div>}</div>
             </div>
             <div className="form-row wizard-form-grid">
               <div className="form-group"><label>Verified By - Name</label><input value={stageInput.structural?.verified_by_name || ''} onChange={(e) => setStageInput(prev => ({ ...prev, structural: { ...prev.structural, verified_by_name: e.target.value } }))} /></div>
@@ -1102,7 +1216,7 @@ function ProjectDetails() {
               <div className="form-group"><label>Designation</label><select value={stageInput.submittal?.submitted_by_designation || ''} onChange={(e) => setStageInput(prev => ({ ...prev, submittal: { ...prev.submittal, submitted_by_designation: e.target.value } }))}><option value="">Select</option><option>Junior Engineer</option><option>Senior Engineer</option><option>Lead Engineer</option><option>Technical Manager</option></select></div>
               <div className="form-group"><label>Submission Date</label><input type="date" value={stageInput.submittal?.date || ''} onChange={(e) => setStageInput(prev => ({ ...prev, submittal: { ...prev.submittal, date: e.target.value } }))} /></div>
             </div>
-            <div className="form-group"><label>Submittal Remarks</label><textarea rows={3} value={stageInput.submittal?.remarks || ''} onChange={(e) => setStageInput(prev => ({ ...prev, submittal: { ...prev.submittal, remarks: e.target.value } }))} /></div>
+            <div className="form-group"><label>Submittal Remarks</label><textarea ref={technicalFeedbackRef} rows={3} className={validationErrors.technical_feedback ? 'input-error' : ''} value={stageInput.submittal?.remarks || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, submittal: { ...prev.submittal, remarks: e.target.value } })); clearValidationError('technical_feedback'); }} />{validationErrors.technical_feedback && <div className="field-error-text">{validationErrors.technical_feedback}</div>}</div>
             <div className="form-group"><label>Additional Supporting Documents</label><input type="file" /></div>
           </>
         );
@@ -1110,12 +1224,15 @@ function ProjectDetails() {
       return (
           <>
             <div className="form-row wizard-form-grid">
-              <div className="form-group"><label>Authorized by - Full Name</label><input ref={technicalSignoffRef} value={stageInput.technicalSignoff?.authorized_name || ''} onChange={(e) => setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, authorized_name: e.target.value } }))} /></div>
-              <div className="form-group"><label>Designation</label><select value={stageInput.technicalSignoff?.designation || ''} onChange={(e) => setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, designation: e.target.value } }))}><option value="">Select</option><option>Senior Engineer</option><option>Technical Manager</option><option>Director of Engineering</option></select></div>
-              <div className="form-group"><label>Department</label><input value={stageInput.technicalSignoff?.department || ''} onChange={(e) => setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, department: e.target.value } }))} /></div>
+              <div className="form-group"><label>Authorized by - Full Name</label><input ref={technicalSignoffRef} className={validationErrors.technical_signoff_authorized_name ? 'input-error' : ''} value={stageInput.technicalSignoff?.authorized_name || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, authorized_name: e.target.value } })); clearValidationError('technical_signoff_authorized_name'); }} />{validationErrors.technical_signoff_authorized_name && <div className="field-error-text">{validationErrors.technical_signoff_authorized_name}</div>}</div>
+              <div className="form-group"><label>Designation</label><select ref={technicalSignoffDesignationRef} className={validationErrors.technical_signoff_designation ? 'input-error' : ''} value={stageInput.technicalSignoff?.designation || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, designation: e.target.value } })); clearValidationError('technical_signoff_designation'); }}><option value="">Select</option><option>Senior Engineer</option><option>Technical Manager</option><option>Director of Engineering</option></select>{validationErrors.technical_signoff_designation && <div className="field-error-text">{validationErrors.technical_signoff_designation}</div>}</div>
+              <div className="form-group"><label>Department</label><input ref={technicalSignoffDepartmentRef} className={validationErrors.technical_signoff_department ? 'input-error' : ''} value={stageInput.technicalSignoff?.department || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, department: e.target.value } })); clearValidationError('technical_signoff_department'); }} />{validationErrors.technical_signoff_department && <div className="field-error-text">{validationErrors.technical_signoff_department}</div>}</div>
             </div>
           <div className="form-group"><label>Date</label><input type="date" value={stageInput.technicalSignoff?.date || ''} onChange={(e) => setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, date: e.target.value } }))} /></div>
-          <label className="wizard-toggle-item"><span>I confirm all technical documents are verified and accurate</span><span className="wizard-switch"><input type="checkbox" checked={Boolean(stageInput.technicalSignoff?.acknowledged)} onChange={(e) => setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, acknowledged: e.target.checked } }))} /><span className="wizard-switch-slider" /></span></label>
+          <div ref={technicalSignoffAcknowledgedRef} tabIndex={-1} className={validationErrors.technical_signoff_acknowledged ? 'field-error-group' : ''}>
+            <label className="wizard-toggle-item"><span>I confirm all technical documents are verified and accurate</span><span className="wizard-switch"><input type="checkbox" checked={Boolean(stageInput.technicalSignoff?.acknowledged)} onChange={(e) => { setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, acknowledged: e.target.checked } })); clearValidationError('technical_signoff_acknowledged'); }} /><span className="wizard-switch-slider" /></span></label>
+            {validationErrors.technical_signoff_acknowledged && <div className="field-error-text">{validationErrors.technical_signoff_acknowledged}</div>}
+          </div>
         </>
       );
     }
