@@ -747,7 +747,8 @@ function ProjectDetails() {
     if (project?.status === 'qc_review') {
       return {
         checklist: {
-          documents_complete: Object.values(stageInput.documents || {}).every((doc) => doc.status === 'received' || doc.status === 'n_a'),
+          documents_complete: Object.values(stageInput.documents || {}).length > 0
+            && Object.values(stageInput.documents || {}).every((doc) => doc.status === 'received' || doc.status === 'n_a'),
           site_survey_required: Boolean(stageInput.documents?.site_photos?.status === 'missing'),
           client_info_verified: Boolean(project?.client_name && project?.location && (project?.client_email || project?.client_phone)),
           scope_clear: Boolean(project?.project_type && project?.project_description)
@@ -1023,7 +1024,12 @@ function ProjectDetails() {
                 <div className="form-group"><input type="number" value={row.quantity} onChange={(e) => setStageInput(prev => ({ ...prev, costRows: prev.costRows.map((r, i) => i === idx ? { ...r, quantity: e.target.value } : r) }))} placeholder="Qty" /></div>
                 <div className="form-group"><select value={row.unit} onChange={(e) => setStageInput(prev => ({ ...prev, costRows: prev.costRows.map((r, i) => i === idx ? { ...r, unit: e.target.value } : r) }))}><option>m²</option><option>m</option><option>pcs</option><option>lot</option><option>hr</option></select></div>
                 <div className="form-group"><input type="number" value={row.unit_cost} onChange={(e) => setStageInput(prev => ({ ...prev, costRows: prev.costRows.map((r, i) => i === idx ? { ...r, unit_cost: e.target.value } : r) }))} placeholder="Unit cost" /></div>
-                <div className="form-group"><input readOnly value={(Number(row.quantity || 0) * Number(row.unit_cost || 0)).toFixed(2)} /></div>
+                <div className="form-group"><input readOnly value={(() => {
+                  const qty = Number(row.quantity);
+                  const unitCost = Number(row.unit_cost);
+                  const total = Number.isFinite(qty) && Number.isFinite(unitCost) ? qty * unitCost : 0;
+                  return total.toFixed(2);
+                })()} /></div>
               </div>
             ))}
             <div className="form-actions"><button type="button" className="btn-secondary" onClick={() => setStageInput(prev => ({ ...prev, costRows: [...prev.costRows, { description: '', category: 'material', quantity: '', unit: 'm²', unit_cost: '' }] }))}>Add Row</button><button type="button" className="btn-secondary" onClick={() => setStageInput(prev => ({ ...prev, costRows: prev.costRows.length > 1 ? prev.costRows.slice(0, -1) : prev.costRows }))}>Remove Row</button></div>
