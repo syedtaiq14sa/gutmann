@@ -390,11 +390,13 @@ function ProjectDetails() {
   const [validationErrors, setValidationErrors] = useState({});
   const [selectedStageKey, setSelectedStageKey] = useState('');
   const [selectedSubStepByStage, setSelectedSubStepByStage] = useState(createInitialSubStepState());
+  const [expandedPreviousStages, setExpandedPreviousStages] = useState({});
   const checklistRef = useRef(null);
   const estimatedCostRef = useRef(null);
   const finalPriceRef = useRef(null);
   const clientResponseRef = useRef(null);
   const feedbackRef = useRef(null);
+  const previousStatusRef = useRef(null);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -475,18 +477,15 @@ function ProjectDetails() {
   useEffect(() => {
     if (!id || !project?.status) return;
     const defaults = createInitialSubStepState();
-    const fallbackStage = WORKFLOW_STAGES.find(stage => stage.key === project.status)?.key || WORKFLOW_STAGES[0].key;
+    const activeStage = WORKFLOW_STAGES.find(stage => stage.key === project.status)?.key || WORKFLOW_STAGES[0].key;
     try {
       const saved = localStorage.getItem(getWizardUiStorageKey(id));
       if (!saved) {
-        setSelectedStageKey(fallbackStage);
+        setSelectedStageKey(activeStage);
         setSelectedSubStepByStage(defaults);
         return;
       }
       const parsed = JSON.parse(saved);
-      const nextStage = WORKFLOW_STAGES.some(stage => stage.key === parsed?.selectedStageKey)
-        ? parsed.selectedStageKey
-        : fallbackStage;
       const hydratedSubSteps = { ...defaults };
       Object.keys(hydratedSubSteps).forEach((stageKey) => {
         const requested = Number(parsed?.selectedSubStepByStage?.[stageKey]);
@@ -494,22 +493,43 @@ function ProjectDetails() {
           ? clampSubStepIndex(stageKey, requested)
           : 0;
       });
-      setSelectedStageKey(nextStage);
+      setSelectedStageKey(activeStage);
       setSelectedSubStepByStage(hydratedSubSteps);
     } catch (err) {
       console.warn('Failed to restore wizard UI state:', err);
-      setSelectedStageKey(fallbackStage);
+      setSelectedStageKey(activeStage);
       setSelectedSubStepByStage(defaults);
     }
   }, [id, project?.status]);
 
   useEffect(() => {
-    if (!id || !selectedStageKey) return;
+    if (!id) return;
     localStorage.setItem(getWizardUiStorageKey(id), JSON.stringify({
-      selectedStageKey,
       selectedSubStepByStage
     }));
-  }, [id, selectedStageKey, selectedSubStepByStage]);
+  }, [id, selectedSubStepByStage]);
+
+  useEffect(() => {
+    if (!project?.status) return;
+    const previousStatus = previousStatusRef.current;
+    const shouldResetOnStageChange = Boolean(previousStatus && previousStatus !== project.status);
+    setSelectedStageKey(project.status);
+    setSelectedSubStepByStage((prev) => {
+      const requested = Number(prev[project.status]);
+      const nextIndex = shouldResetOnStageChange
+        ? 0
+        : Number.isFinite(requested)
+          ? clampSubStepIndex(project.status, requested)
+          : 0;
+      if (prev[project.status] === nextIndex) return prev;
+      return { ...prev, [project.status]: nextIndex };
+    });
+    previousStatusRef.current = project.status;
+  }, [project?.status]);
+
+  useEffect(() => {
+    setExpandedPreviousStages({});
+  }, [id, project?.status]);
 
   useEffect(() => {
     if (!id) return;
@@ -798,7 +818,7 @@ function ProjectDetails() {
     return 'pending';
   };
 
-  const viewedStageKey = selectedStageKey || project?.status || WORKFLOW_STAGES[0].key;
+  const viewedStageKey = project?.status || selectedStageKey || WORKFLOW_STAGES[0].key;
   const viewedStage = WORKFLOW_STAGES.find(stage => stage.key === viewedStageKey);
   const viewedStageRank = STAGE_PROGRESS_ORDER.indexOf(viewedStageKey);
   const viewedStageState = viewedStageRank < currentRank ? 'completed' : viewedStageRank === currentRank ? 'active' : 'pending';
@@ -811,6 +831,69 @@ function ProjectDetails() {
   const shouldShowStageForm = Boolean(isViewingActiveWorkflowStage && canActOnStage && stageRequirements);
   const quotation = project?.quotation || project?.quotations?.[0];
   const overallTurnaroundEnd = TERMINAL_STATUSES.includes(project?.status) ? project?.updated_at : null;
+  const previousWorkflowStages = useMemo(() => WORKFLOW_STAGES.filter((stage) => {
+    const stageRank = STAGE_PROGRESS_ORDER.indexOf(stage.key);
+    return stageRank !== -1 && stageRank < currentRank;
+  }), [currentRank]);
+  const completedTransitionsByStage = useMemo(() => history.reduce((acc, item) => {
+    if (item.action !== 'stage_changed') return acc;
+    const stageKey = item.details?.from;
+    if (!stageKey) return acc;
+    acc[stageKey] = item;
+    return acc;
+  }, {}), [history]);
+  const latestQcReview = useMemo(() => (project?.qc_reviews || []).reduce((latest, review) => {
+    if (!latest) return review;
+    return new Date(review.created_at) > new Date(latest.created_at) ? review : latest;
+  }, null), [project?.qc_reviews]);
+  const latestTechnicalReview = useMemo(() => (project?.technical_reviews || []).reduce((latest, review) => {
+    if (!latest) return review;
+    return new Date(review.created_at) > new Date(latest.created_at) ? review : latest;
+  }, null), [project?.technical_reviews]);
+
+  const renderPreviousStageDetails = (stageKey) => {
+    const record = stageRecords[stageKey];
+    const transition = completedTransitionsByStage[stageKey];
+    const notes = transition?.details?.feedback || transition?.details?.notes || transition?.details?.message || transition?.details?.reason || 'No notes provided';
+
+    if (stageKey === 'qc_review') {
+      return (
+        <div className="wizard-summary-grid secondary">
+          <div className="wizard-summary-item"><span>QC Decision</span><strong>{latestQcReview?.decision || transition?.details?.decision || '—'}</strong></div>
+          <div className="wizard-summary-item"><span>QC Notes</span><strong>{latestQcReview?.notes || notes}</strong></div>
+          <div className="wizard-summary-item"><span>Completed At</span><strong>{formatDateTime(record?.completed_at || transition?.created_at)}</strong></div>
+        </div>
+      );
+    }
+
+    if (stageKey === 'technical_review') {
+      return (
+        <div className="wizard-summary-grid secondary">
+          <div className="wizard-summary-item"><span>Technical Decision</span><strong>{latestTechnicalReview?.decision || transition?.details?.decision || '—'}</strong></div>
+          <div className="wizard-summary-item"><span>Technical Notes</span><strong>{latestTechnicalReview?.notes || notes}</strong></div>
+          <div className="wizard-summary-item"><span>Completed At</span><strong>{formatDateTime(record?.completed_at || transition?.created_at)}</strong></div>
+        </div>
+      );
+    }
+
+    if (stageKey === 'estimation') {
+      return (
+        <div className="wizard-summary-grid secondary">
+          <div className="wizard-summary-item"><span>Estimated Cost</span><strong>${quotation?.estimated_cost?.toLocaleString() || 0}</strong></div>
+          <div className="wizard-summary-item"><span>Final Price</span><strong>${quotation?.final_price?.toLocaleString() || 0}</strong></div>
+          <div className="wizard-summary-item"><span>Notes</span><strong>{notes}</strong></div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="wizard-summary-grid secondary">
+        <div className="wizard-summary-item"><span>Status</span><strong>{record?.completed_at ? 'Completed' : 'Recorded'}</strong></div>
+        <div className="wizard-summary-item"><span>Completed At</span><strong>{formatDateTime(record?.completed_at || transition?.created_at)}</strong></div>
+        <div className="wizard-summary-item"><span>Notes</span><strong>{notes}</strong></div>
+      </div>
+    );
+  };
   const getChecklistState = (stageKey, itemKey) => {
     if (stageKey === project?.status) {
       return Boolean(stageInput.checklist[itemKey]);
@@ -830,11 +913,9 @@ function ProjectDetails() {
     });
   };
 
-  const handleStageSelect = (stageKey) => {
-    setSelectedStageKey(stageKey);
-    if (selectedSubStepByStage[stageKey] === undefined) {
-      updateSubStepIndex(stageKey, 0);
-    }
+  const handleCurrentStageSelect = () => {
+    setSelectedStageKey(project.status);
+    updateSubStepIndex(project.status, selectedSubStepByStage[project.status] ?? 0);
   };
 
   const handleSubStepSelect = (index) => {
@@ -1224,8 +1305,11 @@ function ProjectDetails() {
                 <button
                   type="button"
                   key={stage.key}
-                  className={`wizard-main-step ${stageState}`}
-                  onClick={() => handleStageSelect(stage.key)}
+                  className={`wizard-main-step ${stageState}${stage.key === viewedStageKey ? ' selected' : ''}`}
+                  onClick={handleCurrentStageSelect}
+                  disabled={stage.key !== project?.status}
+                  aria-current={stage.key === project?.status ? 'step' : undefined}
+                  title={stage.key !== project?.status ? 'Cannot navigate from here. Use Previous Stages below for read-only history.' : undefined}
                 >
                   <div className="wizard-main-step-header">
                     <span className="wizard-main-step-count" aria-label={mainStepMarkerLabel}>
@@ -1521,6 +1605,44 @@ function ProjectDetails() {
             </div>
           </section>
         </div>
+
+        {previousWorkflowStages.length > 0 && (
+          <section className="wizard-previous-stages" aria-label="Previous stages">
+            <h3>Previous Stages</h3>
+            <div className="wizard-previous-stage-list">
+              {previousWorkflowStages.map((stage) => {
+                const stageRecord = stageRecords[stage.key];
+                const stageRank = STAGE_PROGRESS_ORDER.indexOf(stage.key);
+                const isCompleted = stageRank < currentRank;
+                const isExpanded = Boolean(expandedPreviousStages[stage.key]);
+                return (
+                  <article key={stage.key} className="wizard-previous-stage-item">
+                    <button
+                      type="button"
+                      className="wizard-previous-stage-toggle"
+                      onClick={() => setExpandedPreviousStages((prev) => ({ ...prev, [stage.key]: !prev[stage.key] }))}
+                      aria-expanded={isExpanded}
+                    >
+                      <span className="wizard-previous-stage-heading">
+                        <strong>{stage.label}</strong>
+                        <small>{isCompleted ? 'Completed' : 'Recorded'}</small>
+                      </span>
+                      <span className="wizard-previous-stage-meta">
+                        <span>Start: {formatDateTime(stageRecord?.started_at)}</span>
+                        <span>End: {stageRecord?.completed_at ? formatDateTime(stageRecord.completed_at) : '—'}</span>
+                      </span>
+                    </button>
+                    {isExpanded && (
+                      <div className="wizard-previous-stage-content">
+                        {renderPreviousStageDetails(stage.key)}
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </div>
 
       <div className="detail-card" style={{ marginTop: '16px' }}>
