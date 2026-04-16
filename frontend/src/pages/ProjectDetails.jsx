@@ -397,6 +397,7 @@ function ProjectDetails() {
   const clientResponseRef = useRef(null);
   const feedbackRef = useRef(null);
   const technicalSignoffRef = useRef(null);
+  const technicalSignoffAuthorizedNameRef = useRef(null);
   const scopeDescriptionRef = useRef(null);
   const scopeWorkTypeRef = useRef(null);
   const scopeComplexityRef = useRef(null);
@@ -636,7 +637,7 @@ function ProjectDetails() {
       technical_scope_complexity: scopeComplexityRef,
       technical_wind_result_status: windResultStatusRef,
       technical_structural_verification_status: structuralVerificationStatusRef,
-      technical_signoff_authorized_name: technicalSignoffRef,
+      technical_signoff_authorized_name: technicalSignoffAuthorizedNameRef,
       technical_signoff_designation: technicalSignoffDesignationRef,
       technical_signoff_department: technicalSignoffDepartmentRef,
       technical_signoff_acknowledged: technicalSignoffAcknowledgedRef,
@@ -851,7 +852,7 @@ function ProjectDetails() {
       const checklist = {
         requirements_reviewed: Boolean(stageInput.scope?.description?.trim() && stageInput.scope?.work_type && stageInput.scope?.complexity),
         feasibility_checked: Boolean(stageInput.wind?.result_status && stageInput.structural?.verification_status),
-        risk_assessed: Boolean(stageInput.wind?.result_status || stageInput.structural?.verification_status || stageInput.scope?.special_conditions?.trim())
+        risk_assessed: Boolean((stageInput.submittal?.remarks || stageInput.wind?.remarks || '').trim() || stageInput.scope?.special_conditions?.trim())
       };
       return {
         checklist,
@@ -1224,7 +1225,7 @@ function ProjectDetails() {
       return (
           <>
             <div className="form-row wizard-form-grid">
-              <div className="form-group"><label>Authorized by - Full Name</label><input ref={technicalSignoffRef} className={validationErrors.technical_signoff_authorized_name ? 'input-error' : ''} value={stageInput.technicalSignoff?.authorized_name || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, authorized_name: e.target.value } })); clearValidationError('technical_signoff_authorized_name'); }} />{validationErrors.technical_signoff_authorized_name && <div className="field-error-text">{validationErrors.technical_signoff_authorized_name}</div>}</div>
+              <div className="form-group"><label>Authorized by - Full Name</label><input ref={technicalSignoffAuthorizedNameRef} className={validationErrors.technical_signoff_authorized_name ? 'input-error' : ''} value={stageInput.technicalSignoff?.authorized_name || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, authorized_name: e.target.value } })); clearValidationError('technical_signoff_authorized_name'); }} />{validationErrors.technical_signoff_authorized_name && <div className="field-error-text">{validationErrors.technical_signoff_authorized_name}</div>}</div>
               <div className="form-group"><label>Designation</label><select ref={technicalSignoffDesignationRef} className={validationErrors.technical_signoff_designation ? 'input-error' : ''} value={stageInput.technicalSignoff?.designation || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, designation: e.target.value } })); clearValidationError('technical_signoff_designation'); }}><option value="">Select</option><option>Senior Engineer</option><option>Technical Manager</option><option>Director of Engineering</option></select>{validationErrors.technical_signoff_designation && <div className="field-error-text">{validationErrors.technical_signoff_designation}</div>}</div>
               <div className="form-group"><label>Department</label><input ref={technicalSignoffDepartmentRef} className={validationErrors.technical_signoff_department ? 'input-error' : ''} value={stageInput.technicalSignoff?.department || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, department: e.target.value } })); clearValidationError('technical_signoff_department'); }} />{validationErrors.technical_signoff_department && <div className="field-error-text">{validationErrors.technical_signoff_department}</div>}</div>
             </div>
