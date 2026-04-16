@@ -44,6 +44,7 @@ const TERMINAL_STATUSES = ['approved', 'rejected', 'supply_chain'];
 const PROJECT_VIEW_STORAGE_KEY = 'project-details:last-open';
 const COMPLETED_CHECKMARK = '✓';
 const VARIANCE_THRESHOLD_PERCENT = 10;
+const FOCUS_DELAY_MS = 60;
 
 const getStageDraftStorageKey = (id, status) => `project-stage-draft:${id}:${status || 'unknown'}`;
 const getQcModalStorageKey = (id) => `project-qc-modal-open:${id}`;
@@ -396,6 +397,13 @@ function ProjectDetails() {
   const finalPriceRef = useRef(null);
   const clientResponseRef = useRef(null);
   const feedbackRef = useRef(null);
+  const scopeDescriptionRef = useRef(null);
+  const scopeWorkTypeRef = useRef(null);
+  const scopeComplexityRef = useRef(null);
+  const scopeSpecialConditionsRef = useRef(null);
+  const windResultStatusRef = useRef(null);
+  const windRemarksRef = useRef(null);
+  const structuralVerificationStatusRef = useRef(null);
   const technicalSignoffRef = useRef(null);
   const technicalSignoffAuthorizedNameRef = useRef(null);
   const scopeDescriptionRef = useRef(null);
@@ -653,6 +661,11 @@ function ProjectDetails() {
 
   const validateStageAction = (mode = 'full') => {
     const errors = {};
+    let firstInvalidMeta = null;
+    const setValidationError = (field, message, meta = {}) => {
+      if (!errors[field]) errors[field] = message;
+      if (!firstInvalidMeta) firstInvalidMeta = { field, message, ...meta };
+    };
     const requirement = BACKEND_STAGE_REQUIREMENTS[project?.status];
     const derived = buildStagePayload();
     const effectiveChecklist = Object.keys(derived?.checklist || {}).length > 0
@@ -663,6 +676,8 @@ function ProjectDetails() {
       : stageInput.feedback;
     const effectiveEstimatedCost = derived?.estimated_cost ?? stageInput.estimated_cost;
     const effectiveFinalPrice = derived?.final_price ?? stageInput.final_price;
+
+    const isTechnicalFullValidation = project?.status === 'technical_review' && mode !== 'feedbackOnly';
 
     if (requirement) {
       const checklistValid = requirement.checklist.every(item => effectiveChecklist[item.key]);
@@ -680,23 +695,23 @@ function ProjectDetails() {
 
       if (mode !== 'feedbackOnly' && requirement.requirePricing) {
         if (!Number.isFinite(estimatedCostNumber) || estimatedCostNumber <= 0) {
-          errors.estimated_cost = 'Enter a valid value greater than 0.';
+          setValidationError('estimated_cost', 'Enter a valid value greater than 0.');
         }
         if (!Number.isFinite(finalPriceNumber) || finalPriceNumber <= 0) {
-          errors.final_price = 'Enter a valid value greater than 0.';
+          setValidationError('final_price', 'Enter a valid value greater than 0.');
         }
       }
 
       if (mode !== 'feedbackOnly' && requirement.requireClientResponse && !stageInput.client_response.trim()) {
-        errors.client_response = 'This field is required.';
+        setValidationError('client_response', 'This field is required.');
       }
     }
 
     if (project?.status === 'qc_review' && mode !== 'feedbackOnly') {
-      if (!stageInput.qcSignoff?.reviewer_name?.trim()) errors.qc_signoff = errors.qc_signoff || 'Reviewer name is required.';
-      if (!stageInput.qcSignoff?.designation?.trim()) errors.qc_signoff = errors.qc_signoff || 'Designation is required.';
-      if (!stageInput.qcSignoff?.acknowledged) errors.qc_signoff = errors.qc_signoff || 'Acknowledgement is required.';
-      if (!stageInput.qcRisk?.category) errors.qc_risk = errors.qc_risk || 'Risk category is required.';
+      if (!stageInput.qcSignoff?.reviewer_name?.trim()) setValidationError('qc_signoff', 'Reviewer name is required.');
+      if (!stageInput.qcSignoff?.designation?.trim()) setValidationError('qc_signoff', 'Designation is required.');
+      if (!stageInput.qcSignoff?.acknowledged) setValidationError('qc_signoff', 'Acknowledgement is required.');
+      if (!stageInput.qcRisk?.category) setValidationError('qc_risk', 'Risk category is required.');
     }
 
     if (project?.status === 'technical_review' && mode !== 'feedbackOnly') {
@@ -780,22 +795,25 @@ function ProjectDetails() {
 
     if (project?.status === 'estimation' && mode !== 'feedbackOnly') {
       const signoff = stageInput.estimationSignoff || {};
-      if (!signoff.estimated_by_name?.trim()) errors.estimation_signoff = errors.estimation_signoff || 'Estimator full name is required.';
-      if (!signoff.designation) errors.estimation_signoff = errors.estimation_signoff || 'Estimator designation is required.';
-      if (!signoff.department?.trim()) errors.estimation_signoff = errors.estimation_signoff || 'Estimator department is required.';
-      if (!signoff.acknowledged) errors.estimation_signoff = errors.estimation_signoff || 'Estimation acknowledgement is required.';
+      if (!signoff.estimated_by_name?.trim()) setValidationError('estimation_signoff', 'Estimator full name is required.');
+      if (!signoff.designation) setValidationError('estimation_signoff', 'Estimator designation is required.');
+      if (!signoff.department?.trim()) setValidationError('estimation_signoff', 'Estimator department is required.');
+      if (!signoff.acknowledged) setValidationError('estimation_signoff', 'Estimation acknowledgement is required.');
     }
 
     if (project?.status === 'ceo_approval' && mode !== 'feedbackOnly') {
       const decision = stageInput.ceoDecision || {};
       const signoff = stageInput.ceoSignoff || {};
-      if (!decision.decision) errors.ceo_decision = errors.ceo_decision || 'Decision selection is required.';
-      if (!decision.mandatory_remarks?.trim()) errors.ceo_decision = errors.ceo_decision || 'Mandatory remarks are required.';
-      if (!signoff.approved_by_name?.trim()) errors.ceo_signoff = errors.ceo_signoff || 'CEO sign-off full name is required.';
-      if (!signoff.designation) errors.ceo_signoff = errors.ceo_signoff || 'CEO sign-off designation is required.';
-      if (!signoff.acknowledged) errors.ceo_signoff = errors.ceo_signoff || 'CEO sign-off acknowledgement is required.';
+      if (!decision.decision) setValidationError('ceo_decision', 'Decision selection is required.');
+      if (!decision.mandatory_remarks?.trim()) setValidationError('ceo_decision', 'Mandatory remarks are required.');
+      if (!signoff.approved_by_name?.trim()) setValidationError('ceo_signoff', 'CEO sign-off full name is required.');
+      if (!signoff.designation) setValidationError('ceo_signoff', 'CEO sign-off designation is required.');
+      if (!signoff.acknowledged) setValidationError('ceo_signoff', 'CEO sign-off acknowledgement is required.');
     }
 
+    if (firstInvalidMeta?.message) {
+      errors._summary = firstInvalidMeta.message;
+    }
     setValidationErrors(errors);
     const firstInvalidField = [
       'technical_scope_description',
@@ -856,7 +874,7 @@ function ProjectDetails() {
       };
       return {
         checklist,
-        feedback: stageInput.submittal?.remarks || stageInput.wind?.remarks || '',
+        feedback: stageInput.submittal?.remarks || stageInput.wind?.remarks || stageInput.scope?.special_conditions || '',
         decision: 'approved'
       };
     }
@@ -918,6 +936,7 @@ function ProjectDetails() {
       if (!prev[field]) return prev;
       const updated = { ...prev };
       delete updated[field];
+      delete updated._summary;
       return updated;
     });
   };
@@ -1145,7 +1164,7 @@ function ProjectDetails() {
               <div className="form-group"><label>Estimated Project Duration</label><input value={stageInput.scope?.duration || ''} onChange={(e) => setStageInput(prev => ({ ...prev, scope: { ...prev.scope, duration: e.target.value } }))} /></div>
             </div>
             <label className="wizard-toggle-item"><span>Site Visit Required</span><span className="wizard-switch"><input type="checkbox" checked={stageInput.scope?.site_visit_required === 'yes'} onChange={(e) => setStageInput(prev => ({ ...prev, scope: { ...prev.scope, site_visit_required: e.target.checked ? 'yes' : 'no' } }))} /><span className="wizard-switch-slider" /></span></label>
-            <div className="form-group"><label>Special Conditions</label><textarea rows={3} value={stageInput.scope?.special_conditions || ''} onChange={(e) => setStageInput(prev => ({ ...prev, scope: { ...prev.scope, special_conditions: e.target.value } }))} /></div>
+            <div className="form-group"><label>Special Conditions</label><textarea ref={scopeSpecialConditionsRef} rows={3} className={validationErrors.technical_risk_input ? 'input-error' : ''} value={stageInput.scope?.special_conditions || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, scope: { ...prev.scope, special_conditions: e.target.value } })); clearValidationError('technical_risk_input'); }} /></div>
           </>
         );
       }
@@ -1162,7 +1181,7 @@ function ProjectDetails() {
               <div className="form-group"><label>Result Status</label><select ref={windResultStatusRef} className={validationErrors.technical_wind_result_status ? 'input-error' : ''} value={stageInput.wind?.result_status || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, wind: { ...prev.wind, result_status: e.target.value } })); clearValidationError('technical_wind_result_status'); }}><option value="">Select</option><option>Pass</option><option>Fail</option><option>Requires Review</option></select>{validationErrors.technical_wind_result_status && <div className="field-error-text">{validationErrors.technical_wind_result_status}</div>}</div>
               <div className="form-group"><label>Wind Load Calculation Document</label><input type="file" /></div>
             </div>
-            <div className="form-group"><label>Remarks</label><textarea rows={3} value={stageInput.wind?.remarks || ''} onChange={(e) => setStageInput(prev => ({ ...prev, wind: { ...prev.wind, remarks: e.target.value } }))} /></div>
+            <div className="form-group"><label>Remarks</label><textarea ref={windRemarksRef} rows={3} className={validationErrors.technical_risk_input ? 'input-error' : ''} value={stageInput.wind?.remarks || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, wind: { ...prev.wind, remarks: e.target.value } })); clearValidationError('technical_risk_input'); }} /></div>
           </>
         );
       }
@@ -1519,7 +1538,7 @@ function ProjectDetails() {
                   <>
                     {Object.keys(validationErrors).length > 0 && (
                       <div className="error-message" role="alert">
-                        Please fix the highlighted fields before continuing.
+                        {validationErrors._summary || 'Please fix the highlighted fields before continuing.'}
                       </div>
                     )}
                     {renderCustomStageContent()}
