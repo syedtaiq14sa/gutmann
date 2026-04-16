@@ -44,6 +44,7 @@ const TERMINAL_STATUSES = ['approved', 'rejected', 'supply_chain'];
 const PROJECT_VIEW_STORAGE_KEY = 'project-details:last-open';
 const COMPLETED_CHECKMARK = '✓';
 const VARIANCE_THRESHOLD_PERCENT = 10;
+const FOCUS_DELAY_MS = 60;
 
 const getStageDraftStorageKey = (id, status) => `project-stage-draft:${id}:${status || 'unknown'}`;
 const getQcModalStorageKey = (id) => `project-qc-modal-open:${id}`;
@@ -751,9 +752,10 @@ function ProjectDetails() {
         );
       }
       if (!stageInput.wind?.remarks?.trim() && !stageInput.scope?.special_conditions?.trim()) {
+        const riskMessage = `Missing info in ${getStepLabel('scope_assessment')}: provide Special Conditions, or add Wind Remarks in ${getStepLabel('wind_load_check')}.`;
         setValidationError(
-          'risk_assessment',
-          `Missing info in ${getStepLabel('scope_assessment')}: provide Special Conditions, or add Wind Remarks in ${getStepLabel('wind_load_check')}.`,
+          'technical_risk_input',
+          riskMessage,
           { subStepKey: 'scope_assessment', focusField: 'scope_special_conditions' }
         );
       }
@@ -818,7 +820,7 @@ function ProjectDetails() {
       }
       window.setTimeout(() => {
         focusAndScrollToField(firstInvalidMeta.focusField || firstInvalidMeta.field);
-      }, 60);
+      }, FOCUS_DELAY_MS);
       return false;
     }
     return true;
@@ -1140,7 +1142,7 @@ function ProjectDetails() {
               <div className="form-group"><label>Estimated Project Duration</label><input value={stageInput.scope?.duration || ''} onChange={(e) => setStageInput(prev => ({ ...prev, scope: { ...prev.scope, duration: e.target.value } }))} /></div>
             </div>
             <label className="wizard-toggle-item"><span>Site Visit Required</span><span className="wizard-switch"><input type="checkbox" checked={stageInput.scope?.site_visit_required === 'yes'} onChange={(e) => setStageInput(prev => ({ ...prev, scope: { ...prev.scope, site_visit_required: e.target.checked ? 'yes' : 'no' } }))} /><span className="wizard-switch-slider" /></span></label>
-            <div className="form-group"><label>Special Conditions</label><textarea ref={scopeSpecialConditionsRef} rows={3} className={validationErrors.risk_assessment ? 'input-error' : ''} value={stageInput.scope?.special_conditions || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, scope: { ...prev.scope, special_conditions: e.target.value } })); clearValidationError('risk_assessment'); }} /></div>
+            <div className="form-group"><label>Special Conditions</label><textarea ref={scopeSpecialConditionsRef} rows={3} className={validationErrors.technical_risk_input ? 'input-error' : ''} value={stageInput.scope?.special_conditions || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, scope: { ...prev.scope, special_conditions: e.target.value } })); clearValidationError('technical_risk_input'); }} /></div>
           </>
         );
       }
@@ -1157,7 +1159,7 @@ function ProjectDetails() {
               <div className="form-group"><label>Result Status</label><select ref={windResultStatusRef} className={validationErrors.wind_result_status ? 'input-error' : ''} value={stageInput.wind?.result_status || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, wind: { ...prev.wind, result_status: e.target.value } })); clearValidationError('wind_result_status'); }}><option value="">Select</option><option>Pass</option><option>Fail</option><option>Requires Review</option></select></div>
               <div className="form-group"><label>Wind Load Calculation Document</label><input type="file" /></div>
             </div>
-            <div className="form-group"><label>Remarks</label><textarea ref={windRemarksRef} rows={3} className={validationErrors.risk_assessment ? 'input-error' : ''} value={stageInput.wind?.remarks || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, wind: { ...prev.wind, remarks: e.target.value } })); clearValidationError('risk_assessment'); }} /></div>
+            <div className="form-group"><label>Remarks</label><textarea ref={windRemarksRef} rows={3} className={validationErrors.technical_risk_input ? 'input-error' : ''} value={stageInput.wind?.remarks || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, wind: { ...prev.wind, remarks: e.target.value } })); clearValidationError('technical_risk_input'); }} /></div>
           </>
         );
       }
