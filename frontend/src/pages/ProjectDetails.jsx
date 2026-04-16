@@ -44,6 +44,7 @@ const TERMINAL_STATUSES = ['approved', 'rejected', 'supply_chain'];
 const PROJECT_VIEW_STORAGE_KEY = 'project-details:last-open';
 const COMPLETED_CHECKMARK = '✓';
 const VARIANCE_THRESHOLD_PERCENT = 10;
+const FOCUS_DELAY_MS = 60;
 
 const getStageDraftStorageKey = (id, status) => `project-stage-draft:${id}:${status || 'unknown'}`;
 const getQcModalStorageKey = (id) => `project-qc-modal-open:${id}`;
@@ -396,7 +397,17 @@ function ProjectDetails() {
   const finalPriceRef = useRef(null);
   const clientResponseRef = useRef(null);
   const feedbackRef = useRef(null);
+  const scopeDescriptionRef = useRef(null);
+  const scopeWorkTypeRef = useRef(null);
+  const scopeComplexityRef = useRef(null);
+  const scopeSpecialConditionsRef = useRef(null);
+  const windResultStatusRef = useRef(null);
+  const windRemarksRef = useRef(null);
+  const structuralVerificationStatusRef = useRef(null);
   const technicalSignoffRef = useRef(null);
+  const technicalSignoffDesignationRef = useRef(null);
+  const technicalSignoffDepartmentRef = useRef(null);
+  const technicalSignoffAcknowledgementRef = useRef(null);
   const previousStatusRef = useRef(null);
 
   useEffect(() => {
@@ -621,7 +632,17 @@ function ProjectDetails() {
       final_price: finalPriceRef,
       client_response: clientResponseRef,
       feedback: feedbackRef,
-      technical_signoff: technicalSignoffRef
+      scope_description: scopeDescriptionRef,
+      scope_work_type: scopeWorkTypeRef,
+      scope_complexity: scopeComplexityRef,
+      scope_special_conditions: scopeSpecialConditionsRef,
+      wind_result_status: windResultStatusRef,
+      wind_remarks: windRemarksRef,
+      structural_verification_status: structuralVerificationStatusRef,
+      technical_signoff_authorized_name: technicalSignoffRef,
+      technical_signoff_designation: technicalSignoffDesignationRef,
+      technical_signoff_department: technicalSignoffDepartmentRef,
+      technical_signoff_acknowledged: technicalSignoffAcknowledgementRef
     };
     const target = fieldRefs[fieldName]?.current;
     if (!target) return;
@@ -633,6 +654,11 @@ function ProjectDetails() {
 
   const validateStageAction = (mode = 'full') => {
     const errors = {};
+    let firstInvalidMeta = null;
+    const setValidationError = (field, message, meta = {}) => {
+      if (!errors[field]) errors[field] = message;
+      if (!firstInvalidMeta) firstInvalidMeta = { field, message, ...meta };
+    };
     const requirement = BACKEND_STAGE_REQUIREMENTS[project?.status];
     const computedStagePayload = buildStagePayload();
     const effectiveChecklist = Object.keys(computedStagePayload?.checklist || {}).length > 0
@@ -644,72 +670,157 @@ function ProjectDetails() {
     const effectiveEstimatedCost = computedStagePayload?.estimated_cost ?? stageInput.estimated_cost;
     const effectiveFinalPrice = computedStagePayload?.final_price ?? stageInput.final_price;
 
+    const isTechnicalFullValidation = project?.status === 'technical_review' && mode !== 'feedbackOnly';
+
     if (requirement) {
       const checklistValid = requirement.checklist.every(item => effectiveChecklist[item.key]);
       const feedbackValid = String(effectiveFeedback || '').trim().length > 0;
       const estimatedCostNumber = Number(effectiveEstimatedCost);
       const finalPriceNumber = Number(effectiveFinalPrice);
 
-      if (mode !== 'feedbackOnly' && !checklistValid) {
-        errors.checklist = 'Please complete all checklist items.';
+      if (!isTechnicalFullValidation && mode !== 'feedbackOnly' && !checklistValid) {
+        setValidationError('checklist', 'Please complete all checklist items.');
       }
 
-      if ((requirement.requireFeedback || mode === 'feedbackOnly') && !feedbackValid) {
-        errors.feedback = 'This field is required.';
+      if (!isTechnicalFullValidation && (requirement.requireFeedback || mode === 'feedbackOnly') && !feedbackValid) {
+        setValidationError('feedback', 'This field is required.');
       }
 
       if (mode !== 'feedbackOnly' && requirement.requirePricing) {
         if (!Number.isFinite(estimatedCostNumber) || estimatedCostNumber <= 0) {
-          errors.estimated_cost = 'Enter a valid value greater than 0.';
+          setValidationError('estimated_cost', 'Enter a valid value greater than 0.');
         }
         if (!Number.isFinite(finalPriceNumber) || finalPriceNumber <= 0) {
-          errors.final_price = 'Enter a valid value greater than 0.';
+          setValidationError('final_price', 'Enter a valid value greater than 0.');
         }
       }
 
       if (mode !== 'feedbackOnly' && requirement.requireClientResponse && !stageInput.client_response.trim()) {
-        errors.client_response = 'This field is required.';
+        setValidationError('client_response', 'This field is required.');
       }
     }
 
     if (project?.status === 'qc_review' && mode !== 'feedbackOnly') {
-      if (!stageInput.qcSignoff?.reviewer_name?.trim()) errors.qc_signoff = errors.qc_signoff || 'Reviewer name is required.';
-      if (!stageInput.qcSignoff?.designation?.trim()) errors.qc_signoff = errors.qc_signoff || 'Designation is required.';
-      if (!stageInput.qcSignoff?.acknowledged) errors.qc_signoff = errors.qc_signoff || 'Acknowledgement is required.';
-      if (!stageInput.qcRisk?.category) errors.qc_risk = errors.qc_risk || 'Risk category is required.';
+      if (!stageInput.qcSignoff?.reviewer_name?.trim()) setValidationError('qc_signoff', 'Reviewer name is required.');
+      if (!stageInput.qcSignoff?.designation?.trim()) setValidationError('qc_signoff', 'Designation is required.');
+      if (!stageInput.qcSignoff?.acknowledged) setValidationError('qc_signoff', 'Acknowledgement is required.');
+      if (!stageInput.qcRisk?.category) setValidationError('qc_risk', 'Risk category is required.');
     }
 
     if (project?.status === 'technical_review' && mode !== 'feedbackOnly') {
+      const technicalSteps = STAGE_SUB_STEPS.technical_review || [];
+      const getStepLabel = (subStepKey) => {
+        const index = technicalSteps.findIndex(step => step.key === subStepKey);
+        const stepNumber = index >= 0 ? `2.${index + 1}` : '2';
+        const title = technicalSteps[index]?.title || 'Technical Review';
+        return `Step ${stepNumber} ${title}`;
+      };
       const signoff = stageInput.technicalSignoff || {};
-      if (!signoff.authorized_name?.trim()) errors.technical_signoff = errors.technical_signoff || 'Technical sign-off authorized by name is required.';
-      if (!signoff.designation) errors.technical_signoff = errors.technical_signoff || 'Technical sign-off designation is required.';
-      if (!signoff.department?.trim()) errors.technical_signoff = errors.technical_signoff || 'Technical sign-off department is required.';
-      if (!signoff.acknowledged) errors.technical_signoff = errors.technical_signoff || 'Technical sign-off acknowledgement is required.';
+      if (!stageInput.scope?.description?.trim()) {
+        setValidationError(
+          'scope_description',
+          `Missing info in ${getStepLabel('scope_assessment')}: Project Scope Description is required.`,
+          { subStepKey: 'scope_assessment', focusField: 'scope_description' }
+        );
+      }
+      if (!stageInput.scope?.work_type) {
+        setValidationError(
+          'scope_work_type',
+          `Missing info in ${getStepLabel('scope_assessment')}: Work Type is required.`,
+          { subStepKey: 'scope_assessment', focusField: 'scope_work_type' }
+        );
+      }
+      if (!stageInput.scope?.complexity) {
+        setValidationError(
+          'scope_complexity',
+          `Missing info in ${getStepLabel('scope_assessment')}: Technical Complexity Rating is required.`,
+          { subStepKey: 'scope_assessment', focusField: 'scope_complexity' }
+        );
+      }
+      if (!stageInput.wind?.result_status) {
+        setValidationError(
+          'wind_result_status',
+          `Missing info in ${getStepLabel('wind_load_check')}: Wind Result Status is required.`,
+          { subStepKey: 'wind_load_check', focusField: 'wind_result_status' }
+        );
+      }
+      if (!stageInput.structural?.verification_status) {
+        setValidationError(
+          'structural_verification_status',
+          `Missing info in ${getStepLabel('structural_calculation')}: Verification Status is required.`,
+          { subStepKey: 'structural_calculation', focusField: 'structural_verification_status' }
+        );
+      }
+      if (!stageInput.wind?.remarks?.trim() && !stageInput.scope?.special_conditions?.trim()) {
+        const riskMessage = `Missing info in ${getStepLabel('scope_assessment')}: provide Special Conditions, or add Wind Remarks in ${getStepLabel('wind_load_check')}.`;
+        setValidationError(
+          'technical_risk_input',
+          riskMessage,
+          { subStepKey: 'scope_assessment', focusField: 'scope_special_conditions' }
+        );
+      }
+      if (!signoff.authorized_name?.trim()) {
+        setValidationError(
+          'technical_signoff_authorized_name',
+          `Missing info in ${getStepLabel('technical_signoff')}: Authorized by - Full Name is required.`,
+          { subStepKey: 'technical_signoff', focusField: 'technical_signoff_authorized_name' }
+        );
+      }
+      if (!signoff.designation) {
+        setValidationError(
+          'technical_signoff_designation',
+          `Missing info in ${getStepLabel('technical_signoff')}: Designation is required.`,
+          { subStepKey: 'technical_signoff', focusField: 'technical_signoff_designation' }
+        );
+      }
+      if (!signoff.department?.trim()) {
+        setValidationError(
+          'technical_signoff_department',
+          `Missing info in ${getStepLabel('technical_signoff')}: Department is required.`,
+          { subStepKey: 'technical_signoff', focusField: 'technical_signoff_department' }
+        );
+      }
+      if (!signoff.acknowledged) {
+        setValidationError(
+          'technical_signoff_acknowledged',
+          `Missing info in ${getStepLabel('technical_signoff')}: Technical sign-off acknowledgement is required.`,
+          { subStepKey: 'technical_signoff', focusField: 'technical_signoff_acknowledged' }
+        );
+      }
     }
 
     if (project?.status === 'estimation' && mode !== 'feedbackOnly') {
       const signoff = stageInput.estimationSignoff || {};
-      if (!signoff.estimated_by_name?.trim()) errors.estimation_signoff = errors.estimation_signoff || 'Estimator full name is required.';
-      if (!signoff.designation) errors.estimation_signoff = errors.estimation_signoff || 'Estimator designation is required.';
-      if (!signoff.department?.trim()) errors.estimation_signoff = errors.estimation_signoff || 'Estimator department is required.';
-      if (!signoff.acknowledged) errors.estimation_signoff = errors.estimation_signoff || 'Estimation acknowledgement is required.';
+      if (!signoff.estimated_by_name?.trim()) setValidationError('estimation_signoff', 'Estimator full name is required.');
+      if (!signoff.designation) setValidationError('estimation_signoff', 'Estimator designation is required.');
+      if (!signoff.department?.trim()) setValidationError('estimation_signoff', 'Estimator department is required.');
+      if (!signoff.acknowledged) setValidationError('estimation_signoff', 'Estimation acknowledgement is required.');
     }
 
     if (project?.status === 'ceo_approval' && mode !== 'feedbackOnly') {
       const decision = stageInput.ceoDecision || {};
       const signoff = stageInput.ceoSignoff || {};
-      if (!decision.decision) errors.ceo_decision = errors.ceo_decision || 'Decision selection is required.';
-      if (!decision.mandatory_remarks?.trim()) errors.ceo_decision = errors.ceo_decision || 'Mandatory remarks are required.';
-      if (!signoff.approved_by_name?.trim()) errors.ceo_signoff = errors.ceo_signoff || 'CEO sign-off full name is required.';
-      if (!signoff.designation) errors.ceo_signoff = errors.ceo_signoff || 'CEO sign-off designation is required.';
-      if (!signoff.acknowledged) errors.ceo_signoff = errors.ceo_signoff || 'CEO sign-off acknowledgement is required.';
+      if (!decision.decision) setValidationError('ceo_decision', 'Decision selection is required.');
+      if (!decision.mandatory_remarks?.trim()) setValidationError('ceo_decision', 'Mandatory remarks are required.');
+      if (!signoff.approved_by_name?.trim()) setValidationError('ceo_signoff', 'CEO sign-off full name is required.');
+      if (!signoff.designation) setValidationError('ceo_signoff', 'CEO sign-off designation is required.');
+      if (!signoff.acknowledged) setValidationError('ceo_signoff', 'CEO sign-off acknowledgement is required.');
     }
 
+    if (firstInvalidMeta?.message) {
+      errors._summary = firstInvalidMeta.message;
+    }
     setValidationErrors(errors);
-    const firstInvalidField = ['checklist', 'estimated_cost', 'final_price', 'client_response', 'feedback', 'qc_signoff', 'qc_risk', 'technical_signoff', 'estimation_signoff', 'ceo_decision', 'ceo_signoff']
-      .find((field) => errors[field]);
-    if (firstInvalidField) {
-      focusAndScrollToField(firstInvalidField);
+    if (firstInvalidMeta) {
+      if (firstInvalidMeta.subStepKey && project?.status === 'technical_review') {
+        const nextIndex = (STAGE_SUB_STEPS.technical_review || []).findIndex((step) => step.key === firstInvalidMeta.subStepKey);
+        if (nextIndex >= 0) {
+          setSelectedSubStepByStage((prev) => ({ ...prev, technical_review: clampSubStepIndex('technical_review', nextIndex) }));
+        }
+      }
+      window.setTimeout(() => {
+        focusAndScrollToField(firstInvalidMeta.focusField || firstInvalidMeta.field);
+      }, FOCUS_DELAY_MS);
       return false;
     }
     return true;
@@ -741,7 +852,7 @@ function ProjectDetails() {
       };
       return {
         checklist,
-        feedback: stageInput.submittal?.remarks || stageInput.wind?.remarks || '',
+        feedback: stageInput.submittal?.remarks || stageInput.wind?.remarks || stageInput.scope?.special_conditions || '',
         decision: 'approved'
       };
     }
@@ -803,6 +914,7 @@ function ProjectDetails() {
       if (!prev[field]) return prev;
       const updated = { ...prev };
       delete updated[field];
+      delete updated._summary;
       return updated;
     });
   };
@@ -1023,14 +1135,14 @@ function ProjectDetails() {
       if (selectedSubStep?.key === 'scope_assessment') {
         return (
           <>
-            <div className="form-group"><label>Project Scope Description</label><textarea rows={3} value={stageInput.scope?.description || ''} onChange={(e) => setStageInput(prev => ({ ...prev, scope: { ...prev.scope, description: e.target.value } }))} /></div>
+            <div className="form-group"><label>Project Scope Description</label><textarea ref={scopeDescriptionRef} rows={3} className={validationErrors.scope_description ? 'input-error' : ''} value={stageInput.scope?.description || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, scope: { ...prev.scope, description: e.target.value } })); clearValidationError('scope_description'); }} /></div>
             <div className="form-row wizard-form-grid">
-              <div className="form-group"><label>Work Type</label><select value={stageInput.scope?.work_type || ''} onChange={(e) => setStageInput(prev => ({ ...prev, scope: { ...prev.scope, work_type: e.target.value } }))}><option value="">Select</option><option>Supply Only</option><option>Supply & Install</option><option>Design & Build</option><option>Consultancy</option></select></div>
-              <div className="form-group"><label>Technical Complexity Rating</label><select value={stageInput.scope?.complexity || ''} onChange={(e) => setStageInput(prev => ({ ...prev, scope: { ...prev.scope, complexity: e.target.value } }))}><option value="">Select</option><option>Simple</option><option>Moderate</option><option>Complex</option><option>Critical</option></select></div>
+              <div className="form-group"><label>Work Type</label><select ref={scopeWorkTypeRef} className={validationErrors.scope_work_type ? 'input-error' : ''} value={stageInput.scope?.work_type || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, scope: { ...prev.scope, work_type: e.target.value } })); clearValidationError('scope_work_type'); }}><option value="">Select</option><option>Supply Only</option><option>Supply & Install</option><option>Design & Build</option><option>Consultancy</option></select></div>
+              <div className="form-group"><label>Technical Complexity Rating</label><select ref={scopeComplexityRef} className={validationErrors.scope_complexity ? 'input-error' : ''} value={stageInput.scope?.complexity || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, scope: { ...prev.scope, complexity: e.target.value } })); clearValidationError('scope_complexity'); }}><option value="">Select</option><option>Simple</option><option>Moderate</option><option>Complex</option><option>Critical</option></select></div>
               <div className="form-group"><label>Estimated Project Duration</label><input value={stageInput.scope?.duration || ''} onChange={(e) => setStageInput(prev => ({ ...prev, scope: { ...prev.scope, duration: e.target.value } }))} /></div>
             </div>
             <label className="wizard-toggle-item"><span>Site Visit Required</span><span className="wizard-switch"><input type="checkbox" checked={stageInput.scope?.site_visit_required === 'yes'} onChange={(e) => setStageInput(prev => ({ ...prev, scope: { ...prev.scope, site_visit_required: e.target.checked ? 'yes' : 'no' } }))} /><span className="wizard-switch-slider" /></span></label>
-            <div className="form-group"><label>Special Conditions</label><textarea rows={3} value={stageInput.scope?.special_conditions || ''} onChange={(e) => setStageInput(prev => ({ ...prev, scope: { ...prev.scope, special_conditions: e.target.value } }))} /></div>
+            <div className="form-group"><label>Special Conditions</label><textarea ref={scopeSpecialConditionsRef} rows={3} className={validationErrors.technical_risk_input ? 'input-error' : ''} value={stageInput.scope?.special_conditions || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, scope: { ...prev.scope, special_conditions: e.target.value } })); clearValidationError('technical_risk_input'); }} /></div>
           </>
         );
       }
@@ -1044,10 +1156,10 @@ function ProjectDetails() {
             </div>
             <div className="form-row wizard-form-grid">
               <div className="form-group"><label>Calculated Wind Pressure</label><input value={stageInput.wind?.wind_pressure || ''} onChange={(e) => setStageInput(prev => ({ ...prev, wind: { ...prev.wind, wind_pressure: e.target.value } }))} /></div>
-              <div className="form-group"><label>Result Status</label><select value={stageInput.wind?.result_status || ''} onChange={(e) => setStageInput(prev => ({ ...prev, wind: { ...prev.wind, result_status: e.target.value } }))}><option value="">Select</option><option>Pass</option><option>Fail</option><option>Requires Review</option></select></div>
+              <div className="form-group"><label>Result Status</label><select ref={windResultStatusRef} className={validationErrors.wind_result_status ? 'input-error' : ''} value={stageInput.wind?.result_status || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, wind: { ...prev.wind, result_status: e.target.value } })); clearValidationError('wind_result_status'); }}><option value="">Select</option><option>Pass</option><option>Fail</option><option>Requires Review</option></select></div>
               <div className="form-group"><label>Wind Load Calculation Document</label><input type="file" /></div>
             </div>
-            <div className="form-group"><label>Remarks</label><textarea rows={3} value={stageInput.wind?.remarks || ''} onChange={(e) => setStageInput(prev => ({ ...prev, wind: { ...prev.wind, remarks: e.target.value } }))} /></div>
+            <div className="form-group"><label>Remarks</label><textarea ref={windRemarksRef} rows={3} className={validationErrors.technical_risk_input ? 'input-error' : ''} value={stageInput.wind?.remarks || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, wind: { ...prev.wind, remarks: e.target.value } })); clearValidationError('technical_risk_input'); }} /></div>
           </>
         );
       }
@@ -1082,7 +1194,7 @@ function ProjectDetails() {
             </div>
             <div className="form-row wizard-form-grid">
               <div className="form-group"><label>Structural Calculation Document</label><input type="file" /></div>
-              <div className="form-group"><label>Verification Status</label><select value={stageInput.structural?.verification_status || ''} onChange={(e) => setStageInput(prev => ({ ...prev, structural: { ...prev.structural, verification_status: e.target.value } }))}><option value="">Select</option><option>Pending</option><option>Verified</option><option>Rejected</option></select></div>
+              <div className="form-group"><label>Verification Status</label><select ref={structuralVerificationStatusRef} className={validationErrors.structural_verification_status ? 'input-error' : ''} value={stageInput.structural?.verification_status || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, structural: { ...prev.structural, verification_status: e.target.value } })); clearValidationError('structural_verification_status'); }}><option value="">Select</option><option>Pending</option><option>Verified</option><option>Rejected</option></select></div>
             </div>
             <div className="form-row wizard-form-grid">
               <div className="form-group"><label>Verified By - Name</label><input value={stageInput.structural?.verified_by_name || ''} onChange={(e) => setStageInput(prev => ({ ...prev, structural: { ...prev.structural, verified_by_name: e.target.value } }))} /></div>
@@ -1110,12 +1222,12 @@ function ProjectDetails() {
       return (
           <>
             <div className="form-row wizard-form-grid">
-              <div className="form-group"><label>Authorized by - Full Name</label><input ref={technicalSignoffRef} value={stageInput.technicalSignoff?.authorized_name || ''} onChange={(e) => setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, authorized_name: e.target.value } }))} /></div>
-              <div className="form-group"><label>Designation</label><select value={stageInput.technicalSignoff?.designation || ''} onChange={(e) => setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, designation: e.target.value } }))}><option value="">Select</option><option>Senior Engineer</option><option>Technical Manager</option><option>Director of Engineering</option></select></div>
-              <div className="form-group"><label>Department</label><input value={stageInput.technicalSignoff?.department || ''} onChange={(e) => setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, department: e.target.value } }))} /></div>
+              <div className="form-group"><label>Authorized by - Full Name</label><input ref={technicalSignoffRef} className={validationErrors.technical_signoff_authorized_name ? 'input-error' : ''} value={stageInput.technicalSignoff?.authorized_name || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, authorized_name: e.target.value } })); clearValidationError('technical_signoff_authorized_name'); }} /></div>
+              <div className="form-group"><label>Designation</label><select ref={technicalSignoffDesignationRef} className={validationErrors.technical_signoff_designation ? 'input-error' : ''} value={stageInput.technicalSignoff?.designation || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, designation: e.target.value } })); clearValidationError('technical_signoff_designation'); }}><option value="">Select</option><option>Senior Engineer</option><option>Technical Manager</option><option>Director of Engineering</option></select></div>
+              <div className="form-group"><label>Department</label><input ref={technicalSignoffDepartmentRef} className={validationErrors.technical_signoff_department ? 'input-error' : ''} value={stageInput.technicalSignoff?.department || ''} onChange={(e) => { setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, department: e.target.value } })); clearValidationError('technical_signoff_department'); }} /></div>
             </div>
           <div className="form-group"><label>Date</label><input type="date" value={stageInput.technicalSignoff?.date || ''} onChange={(e) => setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, date: e.target.value } }))} /></div>
-          <label className="wizard-toggle-item"><span>I confirm all technical documents are verified and accurate</span><span className="wizard-switch"><input type="checkbox" checked={Boolean(stageInput.technicalSignoff?.acknowledged)} onChange={(e) => setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, acknowledged: e.target.checked } }))} /><span className="wizard-switch-slider" /></span></label>
+          <label className={`wizard-toggle-item${validationErrors.technical_signoff_acknowledged ? ' field-error-group' : ''}`}><span>I confirm all technical documents are verified and accurate</span><span className="wizard-switch"><input ref={technicalSignoffAcknowledgementRef} type="checkbox" checked={Boolean(stageInput.technicalSignoff?.acknowledged)} onChange={(e) => { setStageInput(prev => ({ ...prev, technicalSignoff: { ...prev.technicalSignoff, acknowledged: e.target.checked } })); clearValidationError('technical_signoff_acknowledged'); }} /><span className="wizard-switch-slider" /></span></label>
         </>
       );
     }
@@ -1401,7 +1513,7 @@ function ProjectDetails() {
                   <>
                     {Object.keys(validationErrors).length > 0 && (
                       <div className="error-message" role="alert">
-                        Please fix the highlighted fields before continuing.
+                        {validationErrors._summary || 'Please fix the highlighted fields before continuing.'}
                       </div>
                     )}
                     {renderCustomStageContent()}
