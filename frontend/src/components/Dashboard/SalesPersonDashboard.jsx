@@ -1,126 +1,165 @@
 import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { fetchDashboardData } from '../../store/projectSlice';
 import InquiryForm from '../Forms/InquiryForm';
 import api from '../../services/api';
 import '../../styles/dashboard.css';
 
 function SalesPersonDashboard() {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { projects, loading } = useSelector(state => state.projects);
+  const { user } = useSelector(state => state.auth);
+  const [queries, setQueries] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showInquiryForm, setShowInquiryForm] = useState(false);
-  const [sendingToQC, setSendingToQC] = useState(null);
+  const [selectedQuery, setSelectedQuery] = useState(null);
+  const [editingQuery, setEditingQuery] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const [message, setMessage] = useState({ type: '', text: '' });
+
+  const fetchQueries = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/inquiries', { params: { limit: 100 } });
+      const list = (response.data?.data || []).filter((query) => query.created_by === user?.id);
+      setQueries(list);
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.error || 'Failed to load queries' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    dispatch(fetchDashboardData());
-  }, [dispatch]);
+    if (user?.id) fetchQueries();
+  }, [user?.id]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setShowInquiryForm(false);
+      if (e.key === 'Escape') {
+        setShowInquiryForm(false);
+        setSelectedQuery(null);
+        setEditingQuery(null);
+      }
     };
-    if (showInquiryForm) {
+    if (showInquiryForm || selectedQuery || editingQuery) {
       document.addEventListener('keydown', handleKeyDown);
     }
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showInquiryForm]);
+  }, [showInquiryForm, selectedQuery, editingQuery]);
 
-  const handleInquirySuccess = () => {
+  const closeFormModal = () => {
     setShowInquiryForm(false);
-    dispatch(fetchDashboardData());
+    setEditingQuery(null);
   };
 
-  const handleSendToQC = async (projectId) => {
-    setSendingToQC(projectId);
+  const handleInquirySuccess = async () => {
+    closeFormModal();
+    setMessage({ type: 'success', text: editingQuery ? 'Query updated successfully' : 'Query created successfully' });
+    await fetchQueries();
+  };
+
+  const handleDeleteQuery = async (query) => {
+    if (!window.confirm(`Delete query ${query.inquiry_number || ''}? This action cannot be undone.`)) return;
+    setDeletingId(query.id);
     try {
-      await api.put(`/inquiries/${projectId}/stage`, { new_status: 'qc_review' });
-      dispatch(fetchDashboardData());
+      await api.delete(`/inquiries/${query.id}`);
+      setMessage({ type: 'success', text: 'Query deleted successfully' });
+      if (selectedQuery?.id === query.id) setSelectedQuery(null);
+      await fetchQueries();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to send to QC');
+      setMessage({ type: 'error', text: err.response?.data?.error || 'Failed to delete query' });
     } finally {
-      setSendingToQC(null);
+      setDeletingId(null);
     }
+  };
+
+  const openEditModal = (query) => {
+    setEditingQuery(query);
+    setShowInquiryForm(false);
+    setSelectedQuery(null);
   };
 
   if (loading) return <div className="loading-spinner">Loading...</div>;
 
-  const rejectedProjects = projects.filter((p) => p.status === 'sales_followup' || p.status === 'rejected');
-  const completedProjects = projects.filter((p) => ['approved', 'supply_chain'].includes(p.status));
-  const activeProjects = projects.filter((p) => !['approved', 'supply_chain', 'sales_followup', 'rejected'].includes(p.status));
+  const activeQueries = queries.filter((q) => !['approved', 'supply_chain', 'rejected'].includes(q.status));
 
   return (
     <div className="salesperson-dashboard">
       <div className="dashboard-header">
         <h1>Sales Dashboard</h1>
         <button className="btn-primary" onClick={() => setShowInquiryForm(true)}>
-          + Add New Inquiry
+          + Create New Query
         </button>
       </div>
 
-      {showInquiryForm && (
-        <div className="modal-overlay" onClick={() => setShowInquiryForm(false)}>
+      {message.text && (
+        <div className={message.type === 'error' ? 'error-message' : 'success-message'}>
+          {message.text}
+        </div>
+      )}
+
+      {(showInquiryForm || editingQuery) && (
+        <div className="modal-overlay" onClick={closeFormModal}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <InquiryForm
+              mode={editingQuery ? 'edit' : 'create'}
+              initialData={editingQuery || {}}
               onSuccess={handleInquirySuccess}
-              onCancel={() => setShowInquiryForm(false)}
+              onCancel={closeFormModal}
             />
           </div>
         </div>
       )}
+
+      {selectedQuery && (
+        <div className="modal-overlay" onClick={() => setSelectedQuery(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h2>Query Details</h2>
+            <div className="query-detail-grid">
+              <p><strong>Inquiry #:</strong> {selectedQuery.inquiry_number || '—'}</p>
+              <p><strong>Client:</strong> {selectedQuery.client_name || '—'}</p>
+              <p><strong>Email:</strong> {selectedQuery.client_email || '—'}</p>
+              <p><strong>Phone:</strong> {selectedQuery.client_phone || '—'}</p>
+              <p><strong>Company:</strong> {selectedQuery.client_company || '—'}</p>
+              <p><strong>Type:</strong> {selectedQuery.project_type || '—'}</p>
+              <p><strong>Priority:</strong> {selectedQuery.priority || '—'}</p>
+              <p><strong>Status:</strong> {selectedQuery.status?.replace('_', ' ') || '—'}</p>
+              <p><strong>Location:</strong> {selectedQuery.location || '—'}</p>
+              <p><strong>Budget:</strong> {selectedQuery.budget_range || '—'}</p>
+              <p className="query-detail-description"><strong>Description:</strong> {selectedQuery.project_description || '—'}</p>
+            </div>
+            <div className="form-actions">
+              <button className="btn-secondary" onClick={() => setSelectedQuery(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="kpi-cards">
         <div className="kpi-card">
-          <h3>My Projects</h3>
-          <p className="kpi-value">{projects.length}</p>
+          <h3>My Queries</h3>
+          <p className="kpi-value">{queries.length}</p>
         </div>
         <div className="kpi-card alert">
-          <h3>Rejected Follow-ups</h3>
-          <p className="kpi-value">{rejectedProjects.length}</p>
+          <h3>Rejected</h3>
+          <p className="kpi-value">{queries.filter((q) => q.status === 'rejected').length}</p>
         </div>
         <div className="kpi-card success">
-          <h3>Completed</h3>
-          <p className="kpi-value">{completedProjects.length}</p>
+          <h3>Approved</h3>
+          <p className="kpi-value">{queries.filter((q) => q.status === 'approved').length}</p>
         </div>
         <div className="kpi-card warning">
           <h3>Active</h3>
-          <p className="kpi-value">{activeProjects.length}</p>
+          <p className="kpi-value">{activeQueries.length}</p>
         </div>
       </div>
 
       <div className="projects-table-section">
-        <h2>Rejected Queries (Central Follow-up)</h2>
-        {rejectedProjects.length === 0 ? (
-          <p className="empty-state">No rejected queries assigned to Sales.</p>
+        <h2>My Queries</h2>
+        {queries.length === 0 ? (
+          <p className="empty-state">No queries found. Create your first query to get started.</p>
         ) : (
-          <table className="data-table" style={{ marginBottom: '20px' }}>
-            <thead>
-              <tr>
-                <th>Inquiry #</th>
-                <th>Client</th>
-                <th>Status</th>
-                <th>Updated</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rejectedProjects.slice(0, 10).map(project => (
-                <tr key={project.id}>
-                  <td>{project.inquiry_number}</td>
-                  <td>{project.client_name}</td>
-                  <td><span className={`status-badge status-${project.status}`}>{project.status?.replace('_', ' ')}</span></td>
-                  <td>{new Date(project.updated_at || project.created_at).toLocaleString()}</td>
-                  <td>
-                    <button onClick={() => navigate(`/projects/${project.id}`)} className="btn-primary btn-sm">Open Follow-up</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        <h2>Recent Projects</h2>
-        <table className="data-table">
+          <table className="data-table">
           <thead>
             <tr>
               <th>Inquiry #</th>
@@ -131,29 +170,36 @@ function SalesPersonDashboard() {
             </tr>
           </thead>
           <tbody>
-            {projects.slice(0, 10).map(project => (
-              <tr key={project.id}>
-                <td>{project.inquiry_number}</td>
-                <td>{project.client_name}</td>
-                <td><span className={`status-badge status-${project.status}`}>{project.status?.replace('_', ' ')}</span></td>
-                <td>{new Date(project.created_at).toLocaleDateString()}</td>
-                <td>
-                  <button onClick={() => navigate(`/projects/${project.id}`)} className="btn-primary btn-sm">View</button>
-                  {project.status === 'received' && (
+            {queries.map(query => (
+              <tr key={query.id}>
+                <td>{query.inquiry_number}</td>
+                <td>{query.client_name}</td>
+                <td><span className={`status-badge status-${query.status}`}>{query.status?.replace('_', ' ')}</span></td>
+                <td>{new Date(query.created_at).toLocaleDateString()}</td>
+                <td className="query-action-buttons">
+                  <button onClick={() => setSelectedQuery(query)} className="btn-primary btn-sm">View</button>
+                  <button onClick={() => openEditModal(query)} className="btn-secondary btn-sm">Edit</button>
+                  <button
+                    onClick={() => handleDeleteQuery(query)}
+                    className="btn-danger btn-sm"
+                    disabled={deletingId === query.id}
+                  >
+                    {deletingId === query.id ? 'Deleting...' : 'Delete'}
+                  </button>
+                  {query.status === 'received' && (
                     <button
-                      onClick={() => handleSendToQC(project.id)}
+                      onClick={() => navigate(`/projects/${query.id}`)}
                       className="btn-secondary btn-sm"
-                      disabled={sendingToQC === project.id}
-                      style={{ marginLeft: '8px' }}
                     >
-                      {sendingToQC === project.id ? 'Sending...' : 'Send to QC'}
+                      Open Workflow
                     </button>
                   )}
                 </td>
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        )}
       </div>
     </div>
   );

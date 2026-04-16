@@ -144,6 +144,28 @@
   margin-bottom: 16px;
 }
 
+.query-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.query-detail-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.query-detail-grid p {
+  margin: 0;
+  font-size: 14px;
+  color: #334155;
+}
+
+.query-detail-description {
+  grid-column: 1 / -1;
+}
+
 .task-section {
   background: white;
   border-radius: 10px;

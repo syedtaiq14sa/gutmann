@@ -67,6 +67,11 @@ const validateAdvanceRequirements = (currentStatus, newStatus, payload = {}) => 
   return null;
 };
 
+const canSalespersonManageInquiry = (inquiry, user) => {
+  if (user.role !== 'salesperson') return true;
+  return inquiry.created_by === user.id;
+};
+
 // POST /api/inquiries - Create new inquiry
 const createInquiry = async (req, res) => {
   try {
@@ -147,10 +152,7 @@ const getAllInquiries = async (req, res) => {
 
     // Role-based filtering
     if (req.user.role === 'salesperson') {
-      const { data: allInquiries, error: allError } = await query;
-      if (allError) throw allError;
-      const scoped = (allInquiries || []).filter((row) => row.created_by === req.user.id || row.status === 'sales_followup');
-      return res.json({ data: scoped, total: scoped.length, page: parseInt(page), limit: parseInt(limit) });
+      query = query.eq('created_by', req.user.id);
     } else if (req.user.role === 'qc') {
       query = query.in('status', ['received', 'qc_review', 'technical_review', 'estimation', 'ceo_approval', 'sales_followup', 'client_review', 'approved', 'supply_chain', 'rejected']);
     } else if (req.user.role === 'technical') {
@@ -192,6 +194,9 @@ const getInquiryById = async (req, res) => {
     if (error || !data) {
       return res.status(404).json({ error: 'Inquiry not found' });
     }
+    if (!canSalespersonManageInquiry(data, req.user)) {
+      return res.status(403).json({ error: 'You can only access your own queries' });
+    }
 
     res.json(data);
   } catch (err) {
@@ -208,6 +213,19 @@ const updateInquiry = async (req, res) => {
       client_name, client_email, client_phone, client_company,
       project_type, project_description, location, budget_range, priority
     } = req.body;
+
+    const { data: inquiry, error: fetchError } = await supabaseAdmin
+      .from('inquiries')
+      .select('id, created_by')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !inquiry) {
+      return res.status(404).json({ error: 'Inquiry not found' });
+    }
+    if (!canSalespersonManageInquiry(inquiry, req.user)) {
+      return res.status(403).json({ error: 'You can only edit your own queries' });
+    }
 
     const { data, error } = await supabaseAdmin
       .from('inquiries')
@@ -235,6 +253,46 @@ const updateInquiry = async (req, res) => {
   } catch (err) {
     console.error('Update inquiry error:', err);
     res.status(500).json({ error: 'Failed to update inquiry' });
+  }
+};
+
+// DELETE /api/inquiries/:id - Delete inquiry
+const deleteInquiry = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data: inquiry, error: fetchError } = await supabaseAdmin
+      .from('inquiries')
+      .select('id, inquiry_number, created_by')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !inquiry) {
+      return res.status(404).json({ error: 'Inquiry not found' });
+    }
+    if (!canSalespersonManageInquiry(inquiry, req.user)) {
+      return res.status(403).json({ error: 'You can only delete your own queries' });
+    }
+
+    const { error } = await supabaseAdmin
+      .from('inquiries')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    await supabaseAdmin.from('audit_log').insert([{
+      action: 'inquiry_deleted',
+      entity_type: 'inquiry',
+      entity_id: id,
+      performed_by: req.user.id,
+      details: { inquiry_number: inquiry.inquiry_number }
+    }]);
+
+    res.json({ message: 'Query deleted successfully' });
+  } catch (err) {
+    console.error('Delete inquiry error:', err);
+    res.status(500).json({ error: 'Failed to delete inquiry' });
   }
 };
 
@@ -344,6 +402,7 @@ module.exports = {
   getAllInquiries,
   getInquiryById,
   updateInquiry,
+  deleteInquiry,
   getInquiryHistory,
   moveToStage
 };
