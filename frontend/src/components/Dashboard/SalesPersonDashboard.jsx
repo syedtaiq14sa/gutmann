@@ -13,7 +13,6 @@ function SalesPersonDashboard() {
   const [queries, setQueries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showInquiryForm, setShowInquiryForm] = useState(false);
-  const [selectedQuery, setSelectedQuery] = useState(null);
   const [editingQuery, setEditingQuery] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -39,15 +38,14 @@ function SalesPersonDashboard() {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         setShowInquiryForm(false);
-        setSelectedQuery(null);
         setEditingQuery(null);
       }
     };
-    if (showInquiryForm || selectedQuery || editingQuery) {
+    if (showInquiryForm || editingQuery) {
       document.addEventListener('keydown', handleKeyDown);
     }
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showInquiryForm, selectedQuery, editingQuery]);
+  }, [showInquiryForm, editingQuery]);
 
   const closeFormModal = () => {
     setShowInquiryForm(false);
@@ -66,7 +64,6 @@ function SalesPersonDashboard() {
     try {
       await api.delete(`/inquiries/${query.id}`);
       setMessage({ type: 'success', text: 'Query deleted successfully' });
-      if (selectedQuery?.id === query.id) setSelectedQuery(null);
       await fetchQueries();
     } catch (err) {
       setMessage({ type: 'error', text: err.response?.data?.error || 'Failed to delete query' });
@@ -78,7 +75,15 @@ function SalesPersonDashboard() {
   const openEditModal = (query) => {
     setEditingQuery(query);
     setShowInquiryForm(false);
-    setSelectedQuery(null);
+  };
+
+  const handleViewQuery = (query) => {
+    if (!query?.id) {
+      console.error('Missing query ID for workflow navigation', query);
+      setMessage({ type: 'error', text: 'Unable to open workflow. Please try again or contact support.' });
+      return;
+    }
+    navigate(`/projects/${query.id}`);
   };
 
   if (loading) return <div className="loading-spinner">Loading...</div>;
@@ -109,30 +114,6 @@ function SalesPersonDashboard() {
               onSuccess={handleInquirySuccess}
               onCancel={closeFormModal}
             />
-          </div>
-        </div>
-      )}
-
-      {selectedQuery && (
-        <div className="modal-overlay" onClick={() => setSelectedQuery(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <h2>Query Details</h2>
-            <div className="query-detail-grid">
-              <p><strong>Inquiry #:</strong> {selectedQuery.inquiry_number || '—'}</p>
-              <p><strong>Client:</strong> {selectedQuery.client_name || '—'}</p>
-              <p><strong>Email:</strong> {selectedQuery.client_email || '—'}</p>
-              <p><strong>Phone:</strong> {selectedQuery.client_phone || '—'}</p>
-              <p><strong>Company:</strong> {selectedQuery.client_company || '—'}</p>
-              <p><strong>Type:</strong> {selectedQuery.project_type || '—'}</p>
-              <p><strong>Priority:</strong> {selectedQuery.priority || '—'}</p>
-              <p><strong>Status:</strong> {selectedQuery.status?.replace('_', ' ') || '—'}</p>
-              <p><strong>Location:</strong> {selectedQuery.location || '—'}</p>
-              <p><strong>Budget:</strong> {selectedQuery.budget_range || '—'}</p>
-              <p className="query-detail-description"><strong>Description:</strong> {selectedQuery.project_description || '—'}</p>
-            </div>
-            <div className="form-actions">
-              <button className="btn-secondary" onClick={() => setSelectedQuery(null)}>Close</button>
-            </div>
           </div>
         </div>
       )}
@@ -179,7 +160,7 @@ function SalesPersonDashboard() {
                 <td><span className={`status-badge status-${query.status}`}>{query.status?.replace('_', ' ')}</span></td>
                 <td>{new Date(query.created_at).toLocaleDateString()}</td>
                 <td className="query-action-buttons">
-                  <button onClick={() => setSelectedQuery(query)} className="btn-primary btn-sm">View</button>
+                  <button onClick={() => handleViewQuery(query)} className="btn-primary btn-sm">View</button>
                   <button onClick={() => openEditModal(query)} className="btn-secondary btn-sm">Edit</button>
                   <button
                     onClick={() => handleDeleteQuery(query)}
@@ -188,14 +169,6 @@ function SalesPersonDashboard() {
                   >
                     {deletingId === query.id ? 'Deleting...' : 'Delete'}
                   </button>
-                  {query.status === 'received' && (
-                    <button
-                      onClick={() => navigate(`/projects/${query.id}`)}
-                      className="btn-secondary btn-sm"
-                    >
-                      Open Workflow
-                    </button>
-                  )}
                 </td>
               </tr>
             ))}
