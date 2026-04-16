@@ -79,7 +79,7 @@ function SalesPersonDashboard() {
 
   const handleViewQuery = (query) => {
     if (!query?.id) {
-      setMessage({ type: 'error', text: 'Unable to open workflow for this query' });
+      setMessage({ type: 'error', text: 'Cannot open workflow: query ID is missing' });
       return;
     }
     navigate(`/projects/${query.id}`);
