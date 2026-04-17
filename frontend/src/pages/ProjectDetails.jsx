@@ -17,6 +17,43 @@ const WORKFLOW_STAGES = [
 
 const TOP_NAV_STAGES = WORKFLOW_STAGES.filter(stage => stage.topNav);
 
+const ROLE_STAGE_VISIBILITY = {
+  salesperson: [],
+  qc: ['qc_review'],
+  technical: ['qc_review', 'technical_review'],
+  estimation: ['qc_review', 'technical_review', 'estimation'],
+  ceo: WORKFLOW_STAGES.map((stage) => stage.key),
+  client: ['client_review'],
+  supply_chain: ['supply_chain']
+};
+
+const ROLE_EDITABLE_WIZARD_STAGES = {
+  salesperson: [],
+  qc: ['qc_review'],
+  technical: ['technical_review'],
+  estimation: ['estimation'],
+  ceo: ['qc_review', 'technical_review', 'estimation', 'ceo_approval'],
+  client: [],
+  supply_chain: []
+};
+
+// Actionable statuses may include flows handled outside the wizard form (e.g. Sales sticky actions),
+// so this matrix intentionally does not need to match wizard visibility one-to-one.
+const ROLE_ACTIONABLE_STATUSES = {
+  salesperson: ['received', 'qc_revision', 'technical_revision', 'sales_followup', 'client_review', 'approved'],
+  qc: ['qc_review'],
+  technical: ['technical_review'],
+  estimation: ['estimation'],
+  ceo: ['received', 'qc_review', 'qc_revision', 'technical_review', 'technical_revision', 'estimation', 'ceo_approval', 'sales_followup', 'client_review', 'approved', 'supply_chain', 'rejected'],
+  client: ['client_review', 'approved'],
+  supply_chain: ['supply_chain']
+};
+
+const isStatusActionableForRole = (role, status) => {
+  if (!role || !status) return false;
+  return (ROLE_ACTIONABLE_STATUSES[role] || []).includes(status);
+};
+
 const STAGE_PROGRESS_ORDER = [
   'received',
   'qc_review',
@@ -80,6 +117,16 @@ const FOCUS_DELAY_MS = 60;
 const getStageDraftStorageKey = (id, status) => `project-stage-draft:${id}:${status || 'unknown'}`;
 const getQcModalStorageKey = (id) => `project-qc-modal-open:${id}`;
 const getWizardUiStorageKey = (id) => `project-wizard-ui:${id}`;
+const STATUS_LABEL_OVERRIDES = {
+  qc_review: 'QC Review',
+  qc_revision: 'QC Revision',
+  technical_review: 'Technical Review',
+  technical_revision: 'Technical Revision',
+  ceo_approval: 'CEO Approval',
+  sales_followup: 'Sales Follow-up',
+  client_review: 'Client Review',
+  supply_chain: 'Supply Chain'
+};
 
 const BACKEND_STAGE_REQUIREMENTS = {
   technical_review: {
@@ -460,6 +507,7 @@ function ProjectDetails() {
       ]);
       setProject(projectRes.data);
       setHistory(historyRes.data || []);
+      return projectRes.data;
     } catch (err) {
       throw new Error(err?.response?.data?.error || 'Failed to fetch project timeline data');
     }
@@ -609,7 +657,10 @@ function ProjectDetails() {
     setError('');
     try {
       await api.put(`/inquiries/${id}/stage`, { new_status: 'qc_review', feedback: 'Submitted by salesperson' });
-      await fetchAll();
+      const updatedProject = await fetchAll();
+      if (updatedProject?.status && !isStatusActionableForRole(user?.role, updatedProject.status)) {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to send to QC');
     } finally {
@@ -1016,16 +1067,15 @@ function ProjectDetails() {
     return 'pending';
   };
 
-  const currentWorkflowStage = WORKFLOW_STAGES.find((stage) => stage.key === project?.status);
-  const viewedStageKey = currentWorkflowStage?.key || visibleWorkflowStages[0]?.key || WORKFLOW_STAGES[0].key;
-  const viewedStage = visibleWorkflowStages.find(stage => stage.key === viewedStageKey) || currentWorkflowStage;
+  const viewedStageKey = activeEditableStage || project?.status || selectedStageKey || WORKFLOW_STAGES[0].key;
+  const viewedStage = WORKFLOW_STAGES.find(stage => stage.key === viewedStageKey);
   const viewedStageRank = STAGE_PROGRESS_ORDER.indexOf(viewedStageKey);
   const viewedStageState = viewedStageRank < currentRank ? 'completed' : viewedStageRank === currentRank ? 'active' : 'pending';
-  const viewedSubSteps = visibleSubStepsByStage[viewedStageKey] || [];
+  const viewedSubSteps = showActiveStageWizard ? (STAGE_SUB_STEPS[viewedStageKey] || []) : [];
   const selectedSubStepIndex = clampSubStepIndex(viewedStageKey, selectedSubStepByStage[viewedStageKey] ?? 0);
   const selectedSubStep = viewedSubSteps[selectedSubStepIndex] || null;
-  const stageNumber = Math.max(visibleWorkflowStages.findIndex(stage => stage.key === viewedStageKey) + 1, 1);
-  const isViewingActiveWorkflowStage = viewedStageKey === project?.status;
+  const stageNumber = Math.max(WORKFLOW_STAGES.findIndex(stage => stage.key === viewedStageKey) + 1, 1);
+  const isViewingActiveWorkflowStage = viewedStageKey === project?.status && showActiveStageWizard;
   const isLastViewedSubStep = selectedSubStepIndex >= viewedSubSteps.length - 1;
   const shouldSubmitTechnicalStage = Boolean(
     isViewingActiveWorkflowStage
@@ -1043,14 +1093,14 @@ function ProjectDetails() {
   const isReadOnlySalesStatusView = user?.role === 'salesperson' && !isCurrentStageActionable;
   const shouldShowWorkflowWizard = Boolean(isCurrentStageActionable && currentWorkflowStage && viewedSubSteps.length > 0);
   const isCustomStage = ['qc_review', 'technical_review', 'estimation', 'ceo_approval'].includes(viewedStageKey);
-  const shouldShowStageForm = Boolean(shouldShowWorkflowWizard && isViewingActiveWorkflowStage && isCurrentStageActionable && stageRequirements);
+  const shouldShowStageForm = Boolean(showActiveStageWizard && isViewingActiveWorkflowStage && canActOnStage && stageRequirements);
   const quotation = project?.quotation || project?.quotations?.[0];
   const overallTurnaroundEnd = TERMINAL_STATUSES.includes(project?.status) ? project?.updated_at : null;
   const shouldShowPreviousDetails = !isReadOnlySalesStatusView && ['qc', 'technical', 'estimation', 'ceo', 'supply_chain'].includes(user?.role);
   const previousWorkflowStages = useMemo(() => visibleWorkflowStages.filter((stage) => {
     const stageRank = STAGE_PROGRESS_ORDER.indexOf(stage.key);
-    return stageRank !== -1 && stageRank < currentRank;
-  }), [currentRank, visibleWorkflowStages]);
+    return stageRank !== -1 && stageRank < currentRank && roleVisibleStageSet.has(stage.key);
+  }), [currentRank, roleVisibleStageSet]);
   const completedTransitionsByStage = useMemo(() => history.reduce((acc, item) => {
     if (item.action !== 'stage_changed') return acc;
     const stageKey = item.details?.from;
@@ -1524,12 +1574,12 @@ function ProjectDetails() {
               const stageHint = stageState === 'completed' ? 'Completed' : stageState === 'active' ? 'In Progress' : 'Pending';
               return (
                 <button
-                  type="button"
-                  key={stage.key}
-                  className={`wizard-main-step ${stageState}${stage.key === viewedStageKey ? ' selected' : ''}`}
-                  onClick={handleCurrentStageSelect}
-                  disabled={stage.key !== project?.status}
-                  aria-current={stage.key === project?.status ? 'step' : undefined}
+                    type="button"
+                    key={stage.key}
+                    className={`wizard-main-step ${stageState}${showActiveStageWizard && stage.key === viewedStageKey ? ' selected' : ''}`}
+                    onClick={handleCurrentStageSelect}
+                    disabled={stage.key !== project?.status}
+                    aria-current={stage.key === project?.status ? 'step' : undefined}
                   title={stage.key !== project?.status ? 'Cannot navigate from here. Use Previous Stages below for read-only history.' : undefined}
                 >
                   <div className="wizard-main-step-header">
@@ -1549,44 +1599,55 @@ function ProjectDetails() {
         </div>
 
         <div className="wizard-content-layout">
-          <aside className="wizard-substep-panel" role="navigation" aria-label="Sub-steps">
-            <div className="wizard-sidebar-brand">
-              <GutmannLogo compact />
-            </div>
-            <h3>{stageNumber}. {viewedStage?.label || 'Stage'} Review</h3>
-            <div className="wizard-substep-list">
-              {viewedSubSteps.map((subStep, index) => {
-                const subState = getSubStepState(viewedStageState, index, selectedSubStepIndex);
-                const subStepMarker = subState === 'completed' ? COMPLETED_CHECKMARK : index + 1;
-                const subStepMarkerLabel = subState === 'completed'
-                  ? `${subStep.title} completed`
-                  : `${subStep.title}, sub-step ${index + 1}`;
-                return (
-                  <button
-                    key={subStep.key}
-                    type="button"
-                    className={`wizard-substep-item ${subState}`}
-                    onClick={() => handleSubStepSelect(index)}
-                    disabled={viewedStageState === 'pending'}
-                  >
-                    <span className="wizard-substep-marker" aria-label={subStepMarkerLabel}>
-                      {subStepMarker}
-                    </span>
-                    <span className="wizard-substep-copy">
-                      <strong>{subStep.title}</strong>
-                      <small>{subStep.description}</small>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </aside>
+          {showActiveStageWizard && (
+            <aside className="wizard-substep-panel" role="navigation" aria-label="Sub-steps">
+              <div className="wizard-sidebar-brand">
+                <GutmannLogo compact />
+              </div>
+              <h3>{stageNumber}. {viewedStage?.label || 'Stage'} Review</h3>
+              <div className="wizard-substep-list">
+                {viewedSubSteps.map((subStep, index) => {
+                  const subState = getSubStepState(viewedStageState, index, selectedSubStepIndex);
+                  const subStepMarker = subState === 'completed' ? COMPLETED_CHECKMARK : index + 1;
+                  const subStepMarkerLabel = subState === 'completed'
+                    ? `${subStep.title} completed`
+                    : `${subStep.title}, sub-step ${index + 1}`;
+                  return (
+                    <button
+                      key={subStep.key}
+                      type="button"
+                      className={`wizard-substep-item ${subState}`}
+                      onClick={() => handleSubStepSelect(index)}
+                      disabled={viewedStageState === 'pending'}
+                    >
+                      <span className="wizard-substep-marker" aria-label={subStepMarkerLabel}>
+                        {subStepMarker}
+                      </span>
+                      <span className="wizard-substep-copy">
+                        <strong>{subStep.title}</strong>
+                        <small>{subStep.description}</small>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </aside>
+          )}
 
           <section className="wizard-main-panel">
             <div className="wizard-main-panel-header">
               <div>
-                <h2>{stageNumber}.{selectedSubStepIndex + 1} {selectedSubStep?.title || 'Stage Overview'}</h2>
-                <p>{selectedSubStep?.description || 'Review and configure this workflow stage.'}</p>
+                {showActiveStageWizard ? (
+                  <>
+                    <h2>{stageNumber}.{selectedSubStepIndex + 1} {selectedSubStep?.title || 'Stage Overview'}</h2>
+                    <p>{selectedSubStep?.description || 'Review and configure this workflow stage.'}</p>
+                  </>
+                ) : (
+                  <>
+                    <h2>{formatStatusLabel(project.status) || 'Project Status'}</h2>
+                    <p>This inquiry is not currently actionable for your role. You can view status and timeline details below.</p>
+                  </>
+                )}
               </div>
             </div>
 
@@ -1806,24 +1867,26 @@ function ProjectDetails() {
               )}
             </div>
 
-            <div className="wizard-substep-nav">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => handleSubStepSelect(selectedSubStepIndex - 1)}
-                disabled={viewedStageState === 'pending' || selectedSubStepIndex <= 0}
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={handleSubStepPrimaryAction}
-                disabled={viewedStageState === 'pending' || movingNext || (!shouldSubmitTechnicalStage && isLastViewedSubStep)}
-              >
-                {shouldSubmitTechnicalStage ? (movingNext ? 'Submitting...' : 'Submit') : 'Next'}
-              </button>
-            </div>
+            {showActiveStageWizard && (
+              <div className="wizard-substep-nav">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => handleSubStepSelect(selectedSubStepIndex - 1)}
+                  disabled={viewedStageState === 'pending' || selectedSubStepIndex <= 0}
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={handleSubStepPrimaryAction}
+                  disabled={viewedStageState === 'pending' || movingNext || (!shouldSubmitTechnicalStage && isLastViewedSubStep)}
+                >
+                  {shouldSubmitTechnicalStage ? (movingNext ? 'Submitting...' : 'Submit') : 'Next'}
+                </button>
+              </div>
+            )}
           </section>
         </div>
           </>
@@ -2051,7 +2114,10 @@ function ProjectDetails() {
               titleId="qc-review-title"
               onSuccess={async () => {
                 setShowQCReviewForm(false);
-                await fetchAll();
+                const updatedProject = await fetchAll();
+                if (!isStatusActionableForRole(user?.role, updatedProject?.status)) {
+                  navigate('/dashboard');
+                }
               }}
               onCancel={() => setShowQCReviewForm(false)}
             />
