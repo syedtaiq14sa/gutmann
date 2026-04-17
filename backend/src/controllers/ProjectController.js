@@ -1,6 +1,12 @@
 const { supabaseAdmin } = require('../config/supabase');
 const WorkflowEngine = require('../services/WorkflowEngine');
 const { transitionStage } = require('../services/StageTransitionService');
+const { sanitizeInquiryForRole } = require('../utils/projectVisibility');
+
+const hasProjectAccess = (project, user) => {
+  if (user.role !== 'salesperson') return true;
+  return project.created_by === user.id;
+};
 
 const getProjects = async (req, res) => {
   try {
@@ -42,7 +48,11 @@ const getProjectById = async (req, res) => {
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    res.json(data);
+    if (!hasProjectAccess(data, req.user)) {
+      return res.status(403).json({ error: 'You can only access your own projects' });
+    }
+
+    res.json(sanitizeInquiryForRole(data, req.user.role));
   } catch (err) {
     console.error('Get project error:', err);
     res.status(500).json({ error: 'Failed to fetch project' });

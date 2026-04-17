@@ -3,6 +3,7 @@ const WorkflowEngine = require('../services/WorkflowEngine');
 const NotificationService = require('../services/NotificationService');
 const { generateInquiryNumber, isBottleneck } = require('../utils/helpers');
 const { initializeStage, transitionStage } = require('../services/StageTransitionService');
+const { sanitizeInquiryForRole } = require('../utils/projectVisibility');
 
 const STAGE_ADVANCE_REQUIREMENTS = {
   technical_review: {
@@ -198,7 +199,7 @@ const getInquiryById = async (req, res) => {
       return res.status(403).json({ error: 'You can only access your own queries' });
     }
 
-    res.json(data);
+    res.json(sanitizeInquiryForRole(data, req.user.role));
   } catch (err) {
     console.error('Get inquiry error:', err);
     res.status(500).json({ error: 'Failed to fetch inquiry' });
