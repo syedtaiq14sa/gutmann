@@ -37,6 +37,8 @@ const ROLE_EDITABLE_WIZARD_STAGES = {
   supply_chain: []
 };
 
+// Actionable statuses may include flows handled outside the wizard form (e.g. Sales sticky actions),
+// so this matrix intentionally does not need to match wizard visibility one-to-one.
 const ROLE_ACTIONABLE_STATUSES = {
   salesperson: ['received', 'qc_revision', 'technical_revision', 'sales_followup', 'client_review', 'approved'],
   qc: ['qc_review'],
@@ -84,6 +86,16 @@ const FOCUS_DELAY_MS = 60;
 const getStageDraftStorageKey = (id, status) => `project-stage-draft:${id}:${status || 'unknown'}`;
 const getQcModalStorageKey = (id) => `project-qc-modal-open:${id}`;
 const getWizardUiStorageKey = (id) => `project-wizard-ui:${id}`;
+const STATUS_LABEL_OVERRIDES = {
+  qc_review: 'QC Review',
+  qc_revision: 'QC Revision',
+  technical_review: 'Technical Review',
+  technical_revision: 'Technical Revision',
+  ceo_approval: 'CEO Approval',
+  sales_followup: 'Sales Follow-up',
+  client_review: 'Client Review',
+  supply_chain: 'Supply Chain'
+};
 
 const BACKEND_STAGE_REQUIREMENTS = {
   technical_review: {
@@ -381,6 +393,15 @@ const createStageInputState = (status) => {
 };
 
 const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : '—');
+const formatStatusLabel = (status) => {
+  if (!status) return '—';
+  if (STATUS_LABEL_OVERRIDES[status]) return STATUS_LABEL_OVERRIDES[status];
+  return status
+    .split('_')
+    .filter(Boolean)
+    .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
+    .join(' ');
+};
 
 const formatDuration = (start, end) => {
   if (!start) return '—';
@@ -614,7 +635,7 @@ function ProjectDetails() {
     try {
       await api.put(`/inquiries/${id}/stage`, { new_status: 'qc_review', feedback: 'Submitted by salesperson' });
       const updatedProject = await fetchAll();
-      if (!isStatusActionableForRole(user?.role, updatedProject?.status || 'qc_review')) {
+      if (updatedProject?.status && !isStatusActionableForRole(user?.role, updatedProject.status)) {
         navigate('/dashboard');
       }
     } catch (err) {
@@ -981,11 +1002,7 @@ function ProjectDetails() {
   const nextAction = getNextAction();
   const stageRequirements = BACKEND_STAGE_REQUIREMENTS[project?.status];
   const canActOnStage = Boolean(nextAction || (project?.status === 'ceo_approval' && user?.role === 'ceo'));
-  const allowedStagesForUser = useMemo(() => {
-    const visibleStages = ROLE_STAGE_VISIBILITY[user?.role];
-    if (!visibleStages) return [];
-    return visibleStages;
-  }, [user?.role]);
+  const allowedStagesForUser = useMemo(() => ROLE_STAGE_VISIBILITY[user?.role] || [], [user?.role]);
   const roleVisibleStageSet = useMemo(() => new Set(allowedStagesForUser), [allowedStagesForUser]);
   const allowedTopNavStages = useMemo(
     () => TOP_NAV_STAGES.filter((stage) => roleVisibleStageSet.has(stage.key)),
@@ -1502,7 +1519,7 @@ function ProjectDetails() {
       <div className="page-header">
         <button onClick={() => navigate(-1)} className="btn-secondary">← Back</button>
         <h1>{project.inquiry_number || project.id}</h1>
-        <span className={`status-badge status-${project.status}`}>{project.status?.replace('_', ' ')}</span>
+        <span className={`status-badge status-${project.status}`}>{formatStatusLabel(project.status)}</span>
       </div>
 
       {error && <div className="error-message">{error}</div>}
@@ -1588,7 +1605,7 @@ function ProjectDetails() {
                   </>
                 ) : (
                   <>
-                    <h2>{project.status?.replace(/_/g, ' ') || 'Project Status'}</h2>
+                    <h2>{formatStatusLabel(project.status) || 'Project Status'}</h2>
                     <p>This inquiry is not currently actionable for your role. You can view status and timeline details below.</p>
                   </>
                 )}
