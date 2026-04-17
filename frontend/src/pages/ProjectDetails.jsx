@@ -30,6 +30,37 @@ const STAGE_PROGRESS_ORDER = [
   'rejected'
 ];
 
+const ROLE_EDITABLE_STATUSES = {
+  salesperson: ['received', 'qc_revision', 'technical_revision'],
+  qc: ['qc_review'],
+  technical: ['technical_review'],
+  estimation: ['estimation'],
+  supply_chain: ['supply_chain'],
+  client: ['client_review', 'approved']
+};
+
+const ROLE_MAX_VISIBLE_STAGE = {
+  salesperson: 'received',
+  qc: 'qc_review',
+  technical: 'technical_review',
+  estimation: 'estimation',
+  supply_chain: 'supply_chain',
+  client: 'client_review'
+};
+
+const isStatusActionableForRole = (role, status) => {
+  if (!role || !status) return false;
+  if (role === 'ceo') return true;
+  return Boolean(ROLE_EDITABLE_STATUSES[role]?.includes(status));
+};
+
+const getRoleMaxVisibleRank = (role) => {
+  if (role === 'ceo') return Number.POSITIVE_INFINITY;
+  const stageKey = ROLE_MAX_VISIBLE_STAGE[role];
+  const rank = STAGE_PROGRESS_ORDER.indexOf(stageKey);
+  return rank === -1 ? -1 : rank;
+};
+
 const SLA_HOURS = {
   qc_review: 48,
   technical_review: 72,
@@ -406,11 +437,6 @@ function ProjectDetails() {
   const structuralVerificationStatusRef = useRef(null);
   const technicalSignoffRef = useRef(null);
   const technicalSignoffAuthorizedNameRef = useRef(null);
-  const scopeDescriptionRef = useRef(null);
-  const scopeWorkTypeRef = useRef(null);
-  const scopeComplexityRef = useRef(null);
-  const windResultStatusRef = useRef(null);
-  const structuralVerificationStatusRef = useRef(null);
   const technicalSignoffDesignationRef = useRef(null);
   const technicalSignoffDepartmentRef = useRef(null);
   const technicalSignoffAcknowledgedRef = useRef(null);
@@ -596,9 +622,9 @@ function ProjectDetails() {
       technical_review: { nextStatus: 'estimation', roles: ['technical'] },
       estimation: { nextStatus: 'ceo_approval', roles: ['estimation'] },
       ceo_approval: { nextStatus: 'client_review', roles: ['ceo'] },
-      sales_followup: { nextStatus: 'client_review', roles: ['salesperson', 'ceo'] },
-      client_review: { nextStatus: 'approved', roles: ['client', 'salesperson', 'ceo'] },
-      approved: { nextStatus: 'supply_chain', roles: ['ceo', 'salesperson', 'client'] }
+      sales_followup: { nextStatus: 'client_review', roles: ['ceo'] },
+      client_review: { nextStatus: 'approved', roles: ['client', 'ceo'] },
+      approved: { nextStatus: 'supply_chain', roles: ['ceo', 'client'] }
     };
     const action = stageActions[project.status];
     if (!action || !action.roles.includes(user.role)) return null;
@@ -622,9 +648,13 @@ function ProjectDetails() {
         decision: stageInput.decision || null,
         ...extraPayload
       });
-      await fetchAll();
       localStorage.removeItem(draftKey);
       setValidationErrors({});
+      if (isStatusActionableForRole(user?.role, nextStatus)) {
+        await fetchAll();
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to move to next stage');
     } finally {
@@ -943,10 +973,31 @@ function ProjectDetails() {
 
   const nextAction = getNextAction();
   const stageRequirements = BACKEND_STAGE_REQUIREMENTS[project?.status];
-  const canActOnStage = Boolean(nextAction || (project?.status === 'ceo_approval' && user?.role === 'ceo'));
+  const isCurrentStageActionable = isStatusActionableForRole(user?.role, project?.status);
+  const showTransitionActions = Boolean(nextAction || (project?.status === 'ceo_approval' && user?.role === 'ceo'));
 
   const currentRank = STAGE_PROGRESS_ORDER.indexOf(project?.status);
-  const topNavRanks = TOP_NAV_STAGES.map(stage => STAGE_PROGRESS_ORDER.indexOf(stage.key));
+  const roleMaxVisibleRank = getRoleMaxVisibleRank(user?.role);
+  const effectiveVisibleRank = useMemo(() => {
+    if (user?.role === 'ceo') return Number.POSITIVE_INFINITY;
+    if (roleMaxVisibleRank < 0) return currentRank;
+    if (currentRank < 0) return roleMaxVisibleRank;
+    return Math.min(roleMaxVisibleRank, currentRank);
+  }, [currentRank, roleMaxVisibleRank, user?.role]);
+  const visibleWorkflowStages = useMemo(() => WORKFLOW_STAGES.filter((stage) => {
+    if (user?.role === 'ceo') return true;
+    const stageRank = STAGE_PROGRESS_ORDER.indexOf(stage.key);
+    return stageRank !== -1 && stageRank <= effectiveVisibleRank;
+  }), [effectiveVisibleRank, user?.role]);
+  const visibleTopNavStages = useMemo(
+    () => visibleWorkflowStages.filter((stage) => stage.topNav),
+    [visibleWorkflowStages]
+  );
+  const visibleSubStepsByStage = useMemo(() => visibleWorkflowStages.reduce((acc, stage) => {
+    acc[stage.key] = STAGE_SUB_STEPS[stage.key] || [];
+    return acc;
+  }, {}), [visibleWorkflowStages]);
+  const topNavRanks = visibleTopNavStages.map(stage => STAGE_PROGRESS_ORDER.indexOf(stage.key));
   const getTopNavStageState = (stage, index) => {
     // Rejected projects intentionally stop before supply-chain handoff in this UI.
     if (project?.status === 'rejected') {
@@ -964,14 +1015,15 @@ function ProjectDetails() {
     return 'pending';
   };
 
-  const viewedStageKey = project?.status || selectedStageKey || WORKFLOW_STAGES[0].key;
-  const viewedStage = WORKFLOW_STAGES.find(stage => stage.key === viewedStageKey);
+  const currentWorkflowStage = WORKFLOW_STAGES.find((stage) => stage.key === project?.status);
+  const viewedStageKey = currentWorkflowStage?.key || visibleWorkflowStages[0]?.key || selectedStageKey || WORKFLOW_STAGES[0].key;
+  const viewedStage = visibleWorkflowStages.find(stage => stage.key === viewedStageKey) || currentWorkflowStage;
   const viewedStageRank = STAGE_PROGRESS_ORDER.indexOf(viewedStageKey);
   const viewedStageState = viewedStageRank < currentRank ? 'completed' : viewedStageRank === currentRank ? 'active' : 'pending';
-  const viewedSubSteps = STAGE_SUB_STEPS[viewedStageKey] || [];
+  const viewedSubSteps = visibleSubStepsByStage[viewedStageKey] || [];
   const selectedSubStepIndex = clampSubStepIndex(viewedStageKey, selectedSubStepByStage[viewedStageKey] ?? 0);
   const selectedSubStep = viewedSubSteps[selectedSubStepIndex] || null;
-  const stageNumber = Math.max(WORKFLOW_STAGES.findIndex(stage => stage.key === viewedStageKey) + 1, 1);
+  const stageNumber = Math.max(visibleWorkflowStages.findIndex(stage => stage.key === viewedStageKey) + 1, 1);
   const isViewingActiveWorkflowStage = viewedStageKey === project?.status;
   const isLastViewedSubStep = selectedSubStepIndex >= viewedSubSteps.length - 1;
   const shouldSubmitTechnicalStage = Boolean(
@@ -987,14 +1039,17 @@ function ProjectDetails() {
     }
     handleSubStepSelect(selectedSubStepIndex + 1);
   };
+  const isSalesStatusOnlyView = user?.role === 'salesperson' && !isCurrentStageActionable;
+  const shouldShowWorkflowWizard = Boolean(isCurrentStageActionable && currentWorkflowStage && viewedSubSteps.length > 0);
   const isCustomStage = ['qc_review', 'technical_review', 'estimation', 'ceo_approval'].includes(viewedStageKey);
-  const shouldShowStageForm = Boolean(isViewingActiveWorkflowStage && canActOnStage && stageRequirements);
+  const shouldShowStageForm = Boolean(shouldShowWorkflowWizard && isViewingActiveWorkflowStage && isCurrentStageActionable && stageRequirements);
   const quotation = project?.quotation || project?.quotations?.[0];
   const overallTurnaroundEnd = TERMINAL_STATUSES.includes(project?.status) ? project?.updated_at : null;
-  const previousWorkflowStages = useMemo(() => WORKFLOW_STAGES.filter((stage) => {
+  const shouldShowPreviousDetails = !isSalesStatusOnlyView && ['qc', 'technical', 'estimation', 'ceo', 'supply_chain'].includes(user?.role);
+  const previousWorkflowStages = useMemo(() => visibleWorkflowStages.filter((stage) => {
     const stageRank = STAGE_PROGRESS_ORDER.indexOf(stage.key);
     return stageRank !== -1 && stageRank < currentRank;
-  }), [currentRank]);
+  }), [currentRank, visibleWorkflowStages]);
   const completedTransitionsByStage = useMemo(() => history.reduce((acc, item) => {
     if (item.action !== 'stage_changed') return acc;
     const stageKey = item.details?.from;
@@ -1456,10 +1511,12 @@ function ProjectDetails() {
       {error && <div className="error-message">{error}</div>}
 
       <div className="workflow-wizard-shell">
+        {shouldShowWorkflowWizard ? (
+          <>
         <div className="wizard-top-nav">
           <GutmannLogo />
           <div className="wizard-main-stepper" role="navigation" aria-label="Workflow stages">
-            {TOP_NAV_STAGES.map((stage, index) => {
+            {visibleTopNavStages.map((stage, index) => {
               const stageState = getTopNavStageState(stage, index);
               const mainStepMarker = stageState === 'completed' ? COMPLETED_CHECKMARK : index + 1;
               const mainStepMarkerLabel = stageState === 'completed' ? `${stage.label} completed` : `${stage.label}, step ${index + 1}`;
@@ -1768,8 +1825,74 @@ function ProjectDetails() {
             </div>
           </section>
         </div>
+          </>
+        ) : (
+          <section className="wizard-main-panel">
+            <div className="wizard-main-panel-header">
+              <div>
+                <h2>Status Overview</h2>
+                <p>Read-only project status and timeline.</p>
+              </div>
+            </div>
+            <div className="wizard-panel-card">
+              <div className="wizard-stage-summary">
+                <div className="wizard-summary-grid">
+                  {!isSalesStatusOnlyView && (
+                    <>
+                      <div className="wizard-summary-item">
+                        <span>Client</span>
+                        <strong>{project.client_name || '—'}</strong>
+                      </div>
+                      <div className="wizard-summary-item">
+                        <span>Location</span>
+                        <strong>{project.location || '—'}</strong>
+                      </div>
+                    </>
+                  )}
+                  <div className="wizard-summary-item">
+                    <span>Current Status</span>
+                    <strong>{project.status?.replace('_', ' ') || '—'}</strong>
+                  </div>
+                  <div className="wizard-summary-item">
+                    <span>Last Updated</span>
+                    <strong>{formatDateTime(project.updated_at)}</strong>
+                  </div>
+                  <div className="wizard-summary-item">
+                    <span>Overall Turnaround</span>
+                    <strong>{formatDuration(project?.created_at, overallTurnaroundEnd)}</strong>
+                  </div>
+                </div>
+                <div className="wizard-stage-metrics">
+                  <h4>Stage Timeline</h4>
+                  {(project?.project_status || []).length === 0 ? (
+                    <p>No stage activity yet.</p>
+                  ) : (
+                    <div className="wizard-previous-stage-list">
+                      {(project?.project_status || [])
+                        .sort((a, b) => new Date(a.started_at || a.created_at) - new Date(b.started_at || b.created_at))
+                        .map((row, index) => (
+                          <article key={`${row.id || row.stage}-${index}`} className="wizard-previous-stage-item">
+                            <div className="wizard-previous-stage-toggle">
+                              <span className="wizard-previous-stage-heading">
+                                <strong>{row.stage?.replace('_', ' ') || '—'}</strong>
+                                <small>{row.completed_at ? 'Completed' : 'In Progress'}</small>
+                              </span>
+                              <span className="wizard-previous-stage-meta">
+                                <span>Start: {formatDateTime(row.started_at)}</span>
+                                <span>End: {formatDateTime(row.completed_at)}</span>
+                              </span>
+                            </div>
+                          </article>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
-        {previousWorkflowStages.length > 0 && (
+        {shouldShowPreviousDetails && previousWorkflowStages.length > 0 && (
           <section className="wizard-previous-stages" aria-label="Previous stages">
             <h3>Previous Stages</h3>
             <div className="wizard-previous-stage-list">
@@ -1808,6 +1931,7 @@ function ProjectDetails() {
         )}
       </div>
 
+      {(shouldShowWorkflowWizard || user?.role === 'ceo') && (
       <div className="detail-card" style={{ marginTop: '16px' }}>
         <h3>Full Audit Timeline</h3>
         {history.length === 0 ? (
@@ -1833,6 +1957,7 @@ function ProjectDetails() {
           </div>
         )}
       </div>
+      )}
 
       {(user?.role === 'salesperson' && project.status === 'received') && (
         <div className="sticky-action-bar">
@@ -1848,7 +1973,7 @@ function ProjectDetails() {
         </div>
       )}
 
-      {canActOnStage && (
+      {showTransitionActions && (
         <div className="sticky-action-bar">
           {project.status === 'ceo_approval' && user?.role === 'ceo' ? (
             <>
