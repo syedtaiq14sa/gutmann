@@ -377,6 +377,7 @@ const createStageInputState = (status) => {
 };
 
 const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : '—');
+const formatStatusLabel = (value) => (value ? value.replace(/_/g, ' ') : '—');
 
 const formatDuration = (start, end) => {
   if (!start) return '—';
@@ -1016,7 +1017,7 @@ function ProjectDetails() {
   };
 
   const currentWorkflowStage = WORKFLOW_STAGES.find((stage) => stage.key === project?.status);
-  const viewedStageKey = currentWorkflowStage?.key || visibleWorkflowStages[0]?.key || selectedStageKey || WORKFLOW_STAGES[0].key;
+  const viewedStageKey = currentWorkflowStage?.key || visibleWorkflowStages[0]?.key || WORKFLOW_STAGES[0].key;
   const viewedStage = visibleWorkflowStages.find(stage => stage.key === viewedStageKey) || currentWorkflowStage;
   const viewedStageRank = STAGE_PROGRESS_ORDER.indexOf(viewedStageKey);
   const viewedStageState = viewedStageRank < currentRank ? 'completed' : viewedStageRank === currentRank ? 'active' : 'pending';
@@ -1039,13 +1040,13 @@ function ProjectDetails() {
     }
     handleSubStepSelect(selectedSubStepIndex + 1);
   };
-  const isSalesStatusOnlyView = user?.role === 'salesperson' && !isCurrentStageActionable;
+  const isReadOnlySalesStatusView = user?.role === 'salesperson' && !isCurrentStageActionable;
   const shouldShowWorkflowWizard = Boolean(isCurrentStageActionable && currentWorkflowStage && viewedSubSteps.length > 0);
   const isCustomStage = ['qc_review', 'technical_review', 'estimation', 'ceo_approval'].includes(viewedStageKey);
   const shouldShowStageForm = Boolean(shouldShowWorkflowWizard && isViewingActiveWorkflowStage && isCurrentStageActionable && stageRequirements);
   const quotation = project?.quotation || project?.quotations?.[0];
   const overallTurnaroundEnd = TERMINAL_STATUSES.includes(project?.status) ? project?.updated_at : null;
-  const shouldShowPreviousDetails = !isSalesStatusOnlyView && ['qc', 'technical', 'estimation', 'ceo', 'supply_chain'].includes(user?.role);
+  const shouldShowPreviousDetails = !isReadOnlySalesStatusView && ['qc', 'technical', 'estimation', 'ceo', 'supply_chain'].includes(user?.role);
   const previousWorkflowStages = useMemo(() => visibleWorkflowStages.filter((stage) => {
     const stageRank = STAGE_PROGRESS_ORDER.indexOf(stage.key);
     return stageRank !== -1 && stageRank < currentRank;
@@ -1505,7 +1506,7 @@ function ProjectDetails() {
       <div className="page-header">
         <button onClick={() => navigate(-1)} className="btn-secondary">← Back</button>
         <h1>{project.inquiry_number || project.id}</h1>
-        <span className={`status-badge status-${project.status}`}>{project.status?.replace('_', ' ')}</span>
+        <span className={`status-badge status-${project.status}`}>{formatStatusLabel(project.status)}</span>
       </div>
 
       {error && <div className="error-message">{error}</div>}
@@ -1837,7 +1838,7 @@ function ProjectDetails() {
             <div className="wizard-panel-card">
               <div className="wizard-stage-summary">
                 <div className="wizard-summary-grid">
-                  {!isSalesStatusOnlyView && (
+                  {!isReadOnlySalesStatusView && (
                     <>
                       <div className="wizard-summary-item">
                         <span>Client</span>
@@ -1851,7 +1852,7 @@ function ProjectDetails() {
                   )}
                   <div className="wizard-summary-item">
                     <span>Current Status</span>
-                    <strong>{project.status?.replace('_', ' ') || '—'}</strong>
+                    <strong>{formatStatusLabel(project.status)}</strong>
                   </div>
                   <div className="wizard-summary-item">
                     <span>Last Updated</span>
@@ -1874,7 +1875,7 @@ function ProjectDetails() {
                           <article key={`${row.id || row.stage}-${index}`} className="wizard-previous-stage-item">
                             <div className="wizard-previous-stage-toggle">
                               <span className="wizard-previous-stage-heading">
-                                <strong>{row.stage?.replace('_', ' ') || '—'}</strong>
+                                <strong>{formatStatusLabel(row.stage)}</strong>
                                 <small>{row.completed_at ? 'Completed' : 'In Progress'}</small>
                               </span>
                               <span className="wizard-previous-stage-meta">

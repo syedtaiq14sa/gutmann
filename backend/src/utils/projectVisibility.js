@@ -22,8 +22,6 @@ const ROLE_MAX_VISIBLE_STAGE = {
   client: 'client_review'
 };
 
-const SALES_EDITABLE_STATUSES = new Set(['received', 'qc_revision', 'technical_revision']);
-
 const getStageRank = (stage) => STAGE_ORDER.indexOf(stage);
 
 const getRoleMaxVisibleRank = (role) => {
@@ -39,7 +37,7 @@ const sanitizeInquiryForRole = (inquiry, role) => {
   const roleMaxRank = getRoleMaxVisibleRank(role);
   const cappedRank = currentRank >= 0
     ? Math.min(roleMaxRank, currentRank)
-    : roleMaxRank;
+    : -1;
   const sanitized = { ...inquiry };
 
   const canSeeQcDetails = role !== 'salesperson' && getStageRank('qc_review') <= cappedRank;
@@ -50,14 +48,10 @@ const sanitizeInquiryForRole = (inquiry, role) => {
   sanitized.technical_reviews = canSeeTechnicalDetails ? (inquiry.technical_reviews || []) : [];
   sanitized.quotations = canSeeEstimationDetails ? (inquiry.quotations || []) : [];
 
-  if (role === 'salesperson' && !SALES_EDITABLE_STATUSES.has(inquiry.status)) {
-    sanitized.qc_reviews = [];
-    sanitized.technical_reviews = [];
-    sanitized.quotations = [];
-  }
-
   if (Array.isArray(inquiry.project_status)) {
     if (role === 'salesperson') {
+      // Sales users retain high-level stage timeline visibility after handoff.
+      // Detailed departmental artifacts remain hidden via filtered review/quotation arrays.
       sanitized.project_status = inquiry.project_status;
     } else {
       sanitized.project_status = inquiry.project_status.filter((row) => {
