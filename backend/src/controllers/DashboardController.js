@@ -54,11 +54,6 @@ const getProjects = async (req, res) => {
     const { data, error } = await query;
     if (error) throw error;
 
-    if (req.user.role === 'salesperson') {
-      const scoped = (data || []).filter((item) => item.created_by === req.user.id || item.status === 'sales_followup');
-      return res.json(scoped);
-    }
-
     res.json(data);
   } catch (err) {
     console.error('Dashboard projects error:', err);
@@ -83,9 +78,7 @@ const getTasks = async (req, res) => {
     const { data, error } = await query;
     if (error) throw error;
 
-    const scopedData = req.user.role === 'salesperson'
-      ? (data || []).filter((item) => item.created_by === req.user.id || item.status === 'sales_followup')
-      : (data || []);
+    const scopedData = data || [];
 
     const tasks = scopedData.map(item => ({
       ...item,

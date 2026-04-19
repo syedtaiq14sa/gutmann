@@ -68,7 +68,7 @@ const validateAdvanceRequirements = (currentStatus, newStatus, payload = {}) => 
   return null;
 };
 
-const hasInquiryAccess = (inquiry, user) => {
+const hasInquiryWriteAccess = (inquiry, user) => {
   if (user.role !== 'salesperson') return true;
   return inquiry.created_by === user.id;
 };
@@ -152,9 +152,7 @@ const getAllInquiries = async (req, res) => {
       .range(offset, offset + parseInt(limit) - 1);
 
     // Role-based filtering
-    if (req.user.role === 'salesperson') {
-      query = query.eq('created_by', req.user.id);
-    } else if (req.user.role === 'qc') {
+    if (req.user.role === 'qc') {
       query = query.in('status', ['received', 'qc_review', 'technical_review', 'estimation', 'ceo_approval', 'sales_followup', 'client_review', 'approved', 'supply_chain', 'rejected']);
     } else if (req.user.role === 'technical') {
       query = query.in('status', ['technical_review', 'estimation', 'ceo_approval', 'sales_followup', 'client_review', 'approved', 'supply_chain', 'rejected']);
@@ -195,10 +193,6 @@ const getInquiryById = async (req, res) => {
     if (error || !data) {
       return res.status(404).json({ error: 'Inquiry not found' });
     }
-    if (!hasInquiryAccess(data, req.user)) {
-      return res.status(403).json({ error: 'You can only access your own queries' });
-    }
-
     res.json(sanitizeInquiryForRole(data, req.user.role));
   } catch (err) {
     console.error('Get inquiry error:', err);
@@ -224,7 +218,7 @@ const updateInquiry = async (req, res) => {
     if (fetchError || !inquiry) {
       return res.status(404).json({ error: 'Inquiry not found' });
     }
-    if (!hasInquiryAccess(inquiry, req.user)) {
+    if (!hasInquiryWriteAccess(inquiry, req.user)) {
       return res.status(403).json({ error: 'You can only edit your own queries' });
     }
 
@@ -271,7 +265,7 @@ const deleteInquiry = async (req, res) => {
     if (fetchError || !inquiry) {
       return res.status(404).json({ error: 'Inquiry not found' });
     }
-    if (!hasInquiryAccess(inquiry, req.user)) {
+    if (!hasInquiryWriteAccess(inquiry, req.user)) {
       return res.status(403).json({ error: 'You can only delete your own queries' });
     }
 
