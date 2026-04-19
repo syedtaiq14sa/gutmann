@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../store/authSlice';
@@ -7,6 +7,7 @@ import '../styles/forms.css';
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [resetInfo, setResetInfo] = useState('');
@@ -14,6 +15,10 @@ function Login() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { loading } = useSelector(state => state.auth);
+
+  useEffect(() => {
+    setRememberMe(sessionStorage.getItem('gutmann_remember_me') === 'true');
+  }, []);
 
   const validate = () => {
     const errors = {};
@@ -31,6 +36,7 @@ function Login() {
 
     try {
       await dispatch(login({ email: email.trim(), password })).unwrap();
+      sessionStorage.setItem('gutmann_remember_me', rememberMe ? 'true' : 'false');
       navigate('/dashboard');
     } catch (err) {
       setError(err.message || 'Login failed. Please check your credentials.');
@@ -140,6 +146,8 @@ function Login() {
                 <input
                   id="rememberMe"
                   type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
                 />
                 <span>Remember Me</span>
               </label>
