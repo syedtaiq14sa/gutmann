@@ -87,7 +87,7 @@ function Login() {
               <label htmlFor="email">Email / Username</label>
               <input
                 id="email"
-                type="text"
+                type="email"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
@@ -95,6 +95,7 @@ function Login() {
                     setFieldErrors(prev => ({ ...prev, email: '' }));
                   }
                 }}
+                autoComplete="username"
                 placeholder="Enter your email or username"
                 className={fieldErrors.email ? 'input-error' : ''}
                 aria-invalid={Boolean(fieldErrors.email)}
@@ -154,7 +155,7 @@ function Login() {
                 />
                 <span>Remember Me</span>
               </label>
-              <a href="/login" className="forgot-link" onClick={(e) => e.preventDefault()}>
+              <a href="mailto:info@gutmann.com?subject=Password%20Reset%20Request" className="forgot-link">
                 Forgot Password?
               </a>
             </div>
