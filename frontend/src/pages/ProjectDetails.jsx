@@ -1017,6 +1017,25 @@ function ProjectDetails() {
     });
   };
 
+  const roleVisibleStageSet = useMemo(() => {
+    const configuredStages = ROLE_STAGE_VISIBILITY[user?.role] || [];
+    return new Set(configuredStages);
+  }, [user?.role]);
+  const currentWorkflowStage = useMemo(
+    () => WORKFLOW_STAGES.find((stage) => stage.key === project?.status) || null,
+    [project?.status]
+  );
+  const canActOnStage = useMemo(() => {
+    if (!user?.role || !project?.status) return false;
+    const editableStatuses = ROLE_EDITABLE_STATUSES[user?.role] || [];
+    const editableWizardStages = ROLE_EDITABLE_WIZARD_STAGES[user?.role] || [];
+    return editableStatuses.includes(project?.status) || editableWizardStages.includes(project?.status);
+  }, [project?.status, user?.role]);
+  const showActiveStageWizard = Boolean(
+    project?.status && currentWorkflowStage && roleVisibleStageSet.has(project?.status) && isStatusActionableForRole(user?.role, project?.status)
+  );
+  const activeEditableStage = showActiveStageWizard ? project?.status : '';
+
   const nextAction = getNextAction();
   const stageRequirements = BACKEND_STAGE_REQUIREMENTS[project?.status];
   const isCurrentStageActionable = isStatusActionableForRole(user?.role, project?.status);
