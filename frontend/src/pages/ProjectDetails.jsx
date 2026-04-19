@@ -49,11 +49,6 @@ const ROLE_ACTIONABLE_STATUSES = {
   supply_chain: ['supply_chain']
 };
 
-const isStatusActionableForRole = (role, status) => {
-  if (!role || !status) return false;
-  return (ROLE_ACTIONABLE_STATUSES[role] || []).includes(status);
-};
-
 const STAGE_PROGRESS_ORDER = [
   'received',
   'qc_review',
@@ -1067,7 +1062,7 @@ function ProjectDetails() {
     return 'pending';
   };
 
-  const viewedStageKey = activeEditableStage || project?.status || selectedStageKey || WORKFLOW_STAGES[0].key;
+  const viewedStageKey = selectedStageKey || project?.status || WORKFLOW_STAGES[0].key;
   const viewedStage = WORKFLOW_STAGES.find(stage => stage.key === viewedStageKey);
   const viewedStageRank = STAGE_PROGRESS_ORDER.indexOf(viewedStageKey);
   const viewedStageState = viewedStageRank < currentRank ? 'completed' : viewedStageRank === currentRank ? 'active' : 'pending';
