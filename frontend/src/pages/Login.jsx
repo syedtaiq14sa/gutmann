@@ -7,7 +7,6 @@ import '../styles/forms.css';
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [resetInfo, setResetInfo] = useState('');
@@ -18,7 +17,7 @@ function Login() {
 
   const validate = () => {
     const errors = {};
-    if (!email.trim()) errors.email = 'Email or username is required.';
+    if (!email.trim()) errors.email = 'Email / Username is required.';
     if (!password.trim()) errors.password = 'Password is required.';
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
@@ -77,7 +76,8 @@ function Login() {
               <label htmlFor="email">Email / Username</label>
               <input
                 id="email"
-                type="email"
+                type="text"
+                inputMode="email"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
@@ -140,8 +140,6 @@ function Login() {
                 <input
                   id="rememberMe"
                   type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
                 />
                 <span>Remember Me</span>
               </label>
