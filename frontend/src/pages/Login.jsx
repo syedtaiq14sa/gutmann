@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../store/authSlice';
+import gutmannLogo from '../assets/gutmann-logo.png';
 import '../styles/forms.css';
 
 function Login() {
@@ -47,6 +48,7 @@ function Login() {
     <div className="login-shell">
       <div className="login-brand-panel">
         <div className="brand-content">
+          <img className="brand-logo" src={gutmannLogo} alt="Gutmann logo" />
           <p className="brand-kicker">Gutmann Aluminum</p>
           <h1>Welcome to Gutmann Systems</h1>
           <p className="brand-subtext">

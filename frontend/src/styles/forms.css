@@ -1,12 +1,12 @@
 .login-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 1.05fr 1fr;
-  background: #f8fafc;
+  grid-template-columns: 0.95fr 1.05fr;
+  background: #e11d2e;
 }
 
 .login-brand-panel {
-  background: linear-gradient(160deg, #f9fafb 0%, #f3f4f6 100%);
+  background: #ffffff;
   padding: 56px 56px 48px;
   display: flex;
   align-items: center;
@@ -14,6 +14,14 @@
 
 .brand-content {
   max-width: 520px;
+}
+
+.brand-logo {
+  width: clamp(160px, 24vw, 260px);
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin-bottom: 24px;
 }
 
 .brand-kicker {
@@ -110,7 +118,7 @@
   align-items: center;
   justify-content: center;
   padding: 32px;
-  background: #fff;
+  background: #e11d2e;
 }
 
 .login-box {
