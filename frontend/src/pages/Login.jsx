@@ -54,11 +54,7 @@ function Login() {
           <p className="brand-subtext">
             Access your dashboard to manage sales inquiries, projects, and technical workflows.
           </p>
-          <div className="brand-pattern" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </div>
+
           <div className="brand-contact">
             <div className="brand-contact-item">
               <span className="brand-icon" aria-hidden="true">✉</span>
