@@ -85,12 +85,6 @@ const ROLE_MAX_VISIBLE_STAGE = {
   client: 'client_review'
 };
 
-const isStatusActionableForRole = (role, status) => {
-  if (!role || !status) return false;
-  if (role === 'ceo') return true;
-  return Boolean(ROLE_EDITABLE_STATUSES[role]?.includes(status));
-};
-
 const getRoleMaxVisibleRank = (role) => {
   if (role === 'ceo') return Number.POSITIVE_INFINITY;
   const stageKey = ROLE_MAX_VISIBLE_STAGE[role];
