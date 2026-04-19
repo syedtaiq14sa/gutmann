@@ -267,6 +267,13 @@
   font-weight: 600;
 }
 
+.forgot-button {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
 .forgot-link:hover {
   color: #9f1239;
   text-decoration: underline;

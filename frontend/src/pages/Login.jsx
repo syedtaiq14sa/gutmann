@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../store/authSlice';
@@ -10,18 +10,11 @@ function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [resetInfo, setResetInfo] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { loading } = useSelector(state => state.auth);
-
-  useEffect(() => {
-    const remembered = localStorage.getItem('gutmann_remembered_login');
-    if (remembered) {
-      setEmail(remembered);
-      setRememberMe(true);
-    }
-  }, []);
 
   const validate = () => {
     const errors = {};
@@ -34,15 +27,11 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setResetInfo('');
     if (!validate()) return;
 
     try {
       await dispatch(login({ email: email.trim(), password })).unwrap();
-      if (rememberMe) {
-        localStorage.setItem('gutmann_remembered_login', email.trim());
-      } else {
-        localStorage.removeItem('gutmann_remembered_login');
-      }
       navigate('/dashboard');
     } catch (err) {
       setError(err.message || 'Login failed. Please check your credentials.');
@@ -82,6 +71,7 @@ function Login() {
             <h2>Sign in to your account</h2>
           </div>
           {error && <div className="error-message">{error}</div>}
+          {resetInfo && <div className="success-message">{resetInfo}</div>}
           <form onSubmit={handleSubmit} className="login-form" noValidate>
             <div className="form-group">
               <label htmlFor="email">Email / Username</label>
@@ -155,9 +145,13 @@ function Login() {
                 />
                 <span>Remember Me</span>
               </label>
-              <a href="mailto:info@gutmann.com?subject=Password%20Reset%20Request" className="forgot-link">
+              <button
+                type="button"
+                className="forgot-link forgot-button"
+                onClick={() => setResetInfo('Please contact info@gutmann.com to request a password reset.')}
+              >
                 Forgot Password?
-              </a>
+              </button>
             </div>
 
             <button type="submit" className="btn-primary login-submit" disabled={loading}>
