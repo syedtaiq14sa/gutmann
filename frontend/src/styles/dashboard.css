@@ -1068,6 +1068,153 @@
   background-color: #c81022;
 }
 
+.project-details {
+  max-width: none;
+}
+
+.project-details .page-header {
+  margin-bottom: 16px;
+}
+
+.project-details .page-header h1 {
+  font-size: 38px;
+  color: #1e3a5f;
+  font-weight: 700;
+}
+
+.project-details .page-header .btn-secondary {
+  background: #93a5aa;
+  border-radius: 6px;
+  color: #ffffff;
+  border: none;
+  padding: 9px 20px;
+}
+
+.project-details .status-estimation {
+  background: #ede9fe;
+  color: #6d28d9;
+  border-radius: 999px;
+  padding: 6px 12px;
+}
+
+.project-details .wizard-top-nav {
+  grid-template-columns: minmax(0, 1fr) auto;
+  background: #ffffff;
+  border-color: #dbe1e7;
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.project-details .wizard-main-stepper {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 10px;
+}
+
+.project-details .wizard-main-step {
+  min-width: 156px;
+  background: #f2f4f7;
+  border: 1px solid #dce3ea;
+  border-radius: 10px;
+}
+
+.project-details .wizard-main-step.completed {
+  background: #e9f7ef;
+  border-color: #b9e7cf;
+}
+
+.project-details .wizard-main-step.active {
+  background: #ffffff;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6 inset;
+}
+
+.project-details .wizard-main-step.pending {
+  background: #f2f4f7;
+}
+
+.project-details .wizard-main-step.completed .wizard-main-step-count {
+  background: #22c55e;
+  border-color: #22c55e;
+}
+
+.project-details .wizard-main-step.active .wizard-main-step-count {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.project-details .wizard-save-close {
+  background: #8fa0a5;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+}
+
+.project-details .wizard-content-layout {
+  grid-template-columns: minmax(270px, 300px) minmax(0, 1fr);
+}
+
+.project-details .wizard-substep-panel {
+  background: #ffffff;
+}
+
+.project-details .wizard-substep-item {
+  background: #f1f5f9;
+  border-color: #d7dee8;
+}
+
+.project-details .wizard-substep-item.active {
+  background: #fff6f7;
+  border-color: #ef3340;
+}
+
+.project-details .wizard-substep-item.active .wizard-substep-marker {
+  background: #ef3340;
+  border-color: #ef3340;
+}
+
+.project-details .wizard-main-panel {
+  background: #ffffff;
+}
+
+.project-details .wizard-panel-card {
+  background: #f8fafc;
+  border-radius: 16px;
+}
+
+.project-details .estimation-cost-breakdown {
+  border: 1px solid #dbe1e7;
+  border-radius: 14px;
+  padding: 14px;
+  background: #f8fafc;
+}
+
+.project-details .estimation-cost-row {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.project-details .estimation-cost-breakdown .form-group {
+  margin-bottom: 0;
+}
+
+.project-details .estimation-cost-actions {
+  margin-top: 4px;
+}
+
+.project-details .estimation-cost-actions .btn-secondary {
+  background: #8fa0a5;
+  color: #ffffff;
+  border: none;
+}
+
+.project-details .estimation-grand-total {
+  font-size: 22px;
+  color: #1f3b5b;
+  margin-top: 8px;
+}
+
 .workflow-stages {
   display: flex;
   flex-wrap: wrap;
