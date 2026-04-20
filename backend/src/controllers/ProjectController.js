@@ -3,11 +3,6 @@ const WorkflowEngine = require('../services/WorkflowEngine');
 const { transitionStage } = require('../services/StageTransitionService');
 const { sanitizeInquiryForRole } = require('../utils/projectVisibility');
 
-const hasProjectAccess = (project, user) => {
-  if (user.role !== 'salesperson') return true;
-  return project.created_by === user.id;
-};
-
 const getProjects = async (req, res) => {
   try {
     const { status, limit = 50 } = req.query;
@@ -16,10 +11,6 @@ const getProjects = async (req, res) => {
       .select('*, quotations(*)')
       .order('created_at', { ascending: false })
       .limit(parseInt(limit));
-
-    if (req.user.role === 'salesperson') {
-      query = query.eq('created_by', req.user.id);
-    }
 
     if (status) {
       query = query.eq('status', status);
@@ -46,10 +37,6 @@ const getProjectById = async (req, res) => {
 
     if (error || !data) {
       return res.status(404).json({ error: 'Project not found' });
-    }
-
-    if (!hasProjectAccess(data, req.user)) {
-      return res.status(403).json({ error: 'You can only access your own projects' });
     }
 
     res.json(sanitizeInquiryForRole(data, req.user.role));

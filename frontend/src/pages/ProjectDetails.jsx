@@ -49,6 +49,11 @@ const ROLE_ACTIONABLE_STATUSES = {
   supply_chain: ['supply_chain']
 };
 
+const isStatusActionableForRole = (role, status) => {
+  if (!role || !status) return false;
+  return (ROLE_ACTIONABLE_STATUSES[role] || []).includes(status);
+};
+
 const STAGE_PROGRESS_ORDER = [
   'received',
   'qc_review',
@@ -78,12 +83,6 @@ const ROLE_MAX_VISIBLE_STAGE = {
   estimation: 'estimation',
   supply_chain: 'supply_chain',
   client: 'client_review'
-};
-
-const isStatusActionableForRole = (role, status) => {
-  if (!role || !status) return false;
-  if (role === 'ceo') return true;
-  return Boolean(ROLE_EDITABLE_STATUSES[role]?.includes(status));
 };
 
 const getRoleMaxVisibleRank = (role) => {
@@ -1018,6 +1017,25 @@ function ProjectDetails() {
     });
   };
 
+  const roleVisibleStageSet = useMemo(() => {
+    const configuredStages = ROLE_STAGE_VISIBILITY[user?.role] || [];
+    return new Set(configuredStages);
+  }, [user?.role]);
+  const currentWorkflowStage = useMemo(
+    () => WORKFLOW_STAGES.find((stage) => stage.key === project?.status) || null,
+    [project?.status]
+  );
+  const canActOnStage = useMemo(() => {
+    if (!user?.role || !project?.status) return false;
+    const editableStatuses = ROLE_EDITABLE_STATUSES[user?.role] || [];
+    const editableWizardStages = ROLE_EDITABLE_WIZARD_STAGES[user?.role] || [];
+    return editableStatuses.includes(project?.status) || editableWizardStages.includes(project?.status);
+  }, [project?.status, user?.role]);
+  const showActiveStageWizard = Boolean(
+    project?.status && currentWorkflowStage && roleVisibleStageSet.has(project?.status) && isStatusActionableForRole(user?.role, project?.status)
+  );
+  const activeEditableStage = showActiveStageWizard ? project?.status : '';
+
   const nextAction = getNextAction();
   const stageRequirements = BACKEND_STAGE_REQUIREMENTS[project?.status];
   const isCurrentStageActionable = isStatusActionableForRole(user?.role, project?.status);
@@ -1062,7 +1080,7 @@ function ProjectDetails() {
     return 'pending';
   };
 
-  const viewedStageKey = selectedStageKey || project?.status || WORKFLOW_STAGES[0].key;
+  const viewedStageKey = activeEditableStage || project?.status || selectedStageKey || WORKFLOW_STAGES[0].key;
   const viewedStage = WORKFLOW_STAGES.find(stage => stage.key === viewedStageKey);
   const viewedStageRank = STAGE_PROGRESS_ORDER.indexOf(viewedStageKey);
   const viewedStageState = viewedStageRank < currentRank ? 'completed' : viewedStageRank === currentRank ? 'active' : 'pending';
@@ -1361,9 +1379,9 @@ function ProjectDetails() {
     if (viewedStageKey === 'estimation') {
       if (selectedSubStep?.key === 'cost_breakdown') {
         return (
-          <div className="form-group">
+          <div className="form-group estimation-cost-breakdown">
             {(stageInput.costRows || []).map((row, idx) => (
-              <div key={idx} className="form-row wizard-form-grid">
+              <div key={idx} className="estimation-cost-row">
                 <div className="form-group"><input placeholder="Line item description" value={row.description} onChange={(e) => setStageInput(prev => ({ ...prev, costRows: prev.costRows.map((r, i) => i === idx ? { ...r, description: e.target.value } : r) }))} /></div>
                 <div className="form-group"><select value={row.category} onChange={(e) => setStageInput(prev => ({ ...prev, costRows: prev.costRows.map((r, i) => i === idx ? { ...r, category: e.target.value } : r) }))}><option value="material">Material</option><option value="labor">Labor</option><option value="overhead">Overhead</option><option value="subcontract">Subcontract</option><option value="contingency">Contingency</option></select></div>
                 <div className="form-group"><input type="number" value={row.quantity} onChange={(e) => setStageInput(prev => ({ ...prev, costRows: prev.costRows.map((r, i) => i === idx ? { ...r, quantity: e.target.value } : r) }))} placeholder="Qty" /></div>
@@ -1377,8 +1395,8 @@ function ProjectDetails() {
                 })()} /></div>
               </div>
             ))}
-            <div className="form-actions"><button type="button" className="btn-secondary" onClick={() => setStageInput(prev => ({ ...prev, costRows: [...prev.costRows, { description: '', category: 'material', quantity: '', unit: 'm²', unit_cost: '' }] }))}>Add Row</button><button type="button" className="btn-secondary" onClick={() => setStageInput(prev => ({ ...prev, costRows: prev.costRows.length > 1 ? prev.costRows.slice(0, -1) : prev.costRows }))}>Remove Row</button></div>
-            <p className="form-helper-text">Grand Total: {getEstimationTotalCost().toFixed(2)}</p>
+            <div className="form-actions estimation-cost-actions"><button type="button" className="btn-secondary" onClick={() => setStageInput(prev => ({ ...prev, costRows: [...prev.costRows, { description: '', category: 'material', quantity: '', unit: 'm²', unit_cost: '' }] }))}>Add Row</button><button type="button" className="btn-secondary" onClick={() => setStageInput(prev => ({ ...prev, costRows: prev.costRows.length > 1 ? prev.costRows.slice(0, -1) : prev.costRows }))}>Remove Row</button></div>
+            <p className="form-helper-text estimation-grand-total">Grand Total: {getEstimationTotalCost().toFixed(2)}</p>
           </div>
         );
       }
@@ -1560,7 +1578,6 @@ function ProjectDetails() {
         {shouldShowWorkflowWizard ? (
           <>
         <div className="wizard-top-nav">
-          <GutmannLogo />
           <div className="wizard-main-stepper" role="navigation" aria-label="Workflow stages">
             {visibleTopNavStages.map((stage, index) => {
               const stageState = getTopNavStageState(stage, index);
