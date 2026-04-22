@@ -152,9 +152,9 @@
 
 .modal-content.inquiry-modal-content {
   width: calc(100vw - 32px);
-  max-width: none;
+  max-width: 1600px;
   height: calc(100vh - 32px);
-  max-height: none;
+  max-height: calc(100vh - 32px);
   overflow: hidden;
   padding: 0;
 }
