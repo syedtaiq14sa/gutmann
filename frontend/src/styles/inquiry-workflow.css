@@ -151,10 +151,11 @@
 }
 
 .modal-content.inquiry-modal-content {
-  width: calc(100vw - 32px);
+  --inquiry-modal-viewport-margin: 32px;
+  width: calc(100vw - var(--inquiry-modal-viewport-margin));
   max-width: 1600px;
-  height: calc(100vh - 32px);
-  max-height: calc(100vh - 32px);
+  height: calc(100vh - var(--inquiry-modal-viewport-margin));
+  max-height: calc(100vh - var(--inquiry-modal-viewport-margin));
   overflow: hidden;
   padding: 0;
 }
