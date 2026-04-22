@@ -150,9 +150,11 @@
   max-width: 100%;
 }
 
-.inquiry-modal-content {
-  width: min(96vw, 1400px);
-  height: min(94vh, 980px);
+.modal-content.inquiry-modal-content {
+  width: calc(100vw - 32px);
+  max-width: none;
+  height: calc(100vh - 32px);
+  max-height: none;
   overflow: hidden;
   padding: 0;
 }
@@ -336,17 +338,21 @@
     height: 100vh;
     max-height: 100vh;
     border-radius: 0;
+    overflow-y: auto;
   }
 
   .inquiry-modal-content .inquiry-workflow-container {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 16px;
     padding: 16px;
+    height: auto;
   }
 
-  .inquiry-modal-content .inquiry-sidebar {
+  .inquiry-modal-content .inquiry-sidebar,
+  .inquiry-modal-content .inquiry-form-panel {
     position: static;
     top: auto;
+    overflow-y: visible;
   }
 }
 
