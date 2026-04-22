@@ -152,9 +152,7 @@
 
 .inquiry-modal-content {
   width: min(96vw, 1400px);
-  max-width: 96vw;
   height: min(94vh, 980px);
-  max-height: 94vh;
   overflow: hidden;
   padding: 0;
 }
@@ -344,7 +342,6 @@
     grid-template-columns: 1fr;
     gap: 16px;
     padding: 16px;
-    overflow-y: auto;
   }
 
   .inquiry-modal-content .inquiry-sidebar {
