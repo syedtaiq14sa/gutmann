@@ -343,7 +343,7 @@
   }
 
   .inquiry-modal-content .inquiry-workflow-container {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: 1fr;
     gap: 16px;
     padding: 16px;
     height: auto;
