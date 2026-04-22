@@ -66,7 +66,7 @@ const login = async (req, res) => {
     const { data: user, error } = await supabaseAdmin
       .from('users')
       .select('id, email, name, role, password_hash, is_active')
-      .eq('email', email)
+      .or(`email.eq.${email},name.eq.${email}`)
       .single();
 
     if (error || !user) {

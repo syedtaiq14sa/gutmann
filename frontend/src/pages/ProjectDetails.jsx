@@ -18,7 +18,7 @@ const WORKFLOW_STAGES = [
 const TOP_NAV_STAGES = WORKFLOW_STAGES.filter(stage => stage.topNav);
 
 const ROLE_STAGE_VISIBILITY = {
-  salesperson: [],
+  salesperson: ['sales_followup', 'client_review', 'approved'],
   qc: ['qc_review'],
   technical: ['qc_review', 'technical_review'],
   estimation: ['qc_review', 'technical_review', 'estimation'],
@@ -160,6 +160,19 @@ const BACKEND_STAGE_REQUIREMENTS = {
     ],
     requireFeedback: true,
     requireClientResponse: true
+  },
+  approved: {
+    checklist: [
+      { key: 'handover_documents_prepared', label: 'Handover documents prepared' },
+      { key: 'client_details_verified', label: 'Client details verified' },
+      { key: 'project_timeline_confirmed', label: 'Project timeline confirmed' }
+    ],
+    requireFeedback: true
+  },
+  supply_chain: {
+    checklist: [
+      { key: 'handoff', title: 'Supply Chain', description: 'Review handoff timeline and completion records.' }
+    ]
   }
 };
 
@@ -197,6 +210,9 @@ const STAGE_SUB_STEPS = {
   ],
   client_review: [
     { key: 'client_decision', title: 'Client Approval', description: 'Capture client response and comments.' }
+  ],
+  approved: [
+    { key: 'handover_prep', title: 'Handover Preparation', description: 'Prepare documents and verify details for supply chain handover.' }
   ],
   supply_chain: [
     { key: 'handoff', title: 'Supply Chain', description: 'Review handoff timeline and completion records.' }
@@ -395,6 +411,16 @@ const createStageInputState = (status) => {
         signature: '',
         acknowledged: false
       }
+    };
+  }
+  if (status === 'sales_followup') {
+    return {
+      checklist: {},
+      feedback: '',
+      estimated_cost: '',
+      final_price: '',
+      client_response: '',
+      decision: ''
     };
   }
   if (status === 'client_review') {
@@ -667,10 +693,10 @@ function ProjectDetails() {
     const stageActions = {
       technical_review: { nextStatus: 'estimation', roles: ['technical'] },
       estimation: { nextStatus: 'ceo_approval', roles: ['estimation'] },
-      ceo_approval: { nextStatus: 'client_review', roles: ['ceo'] },
-      sales_followup: { nextStatus: 'client_review', roles: ['ceo'] },
-      client_review: { nextStatus: 'approved', roles: ['client', 'ceo'] },
-      approved: { nextStatus: 'supply_chain', roles: ['ceo', 'client'] }
+      ceo_approval: { nextStatus: 'sales_followup', roles: ['ceo'] },
+      sales_followup: { nextStatus: 'client_review', roles: ['salesperson', 'ceo'] },
+      client_review: { nextStatus: 'approved', roles: ['client', 'ceo', 'salesperson'] },
+      approved: { nextStatus: 'supply_chain', roles: ['ceo', 'client', 'salesperson'] }
     };
     const action = stageActions[project.status];
     if (!action || !action.roles.includes(user.role)) return null;
@@ -1806,7 +1832,7 @@ function ProjectDetails() {
                   )}
 
                   <div className="form-group">
-                    <label>Feedback / Comments *</label>
+                    <label>{project?.status === 'sales_followup' ? 'Client feedback received by Sales *' : 'Feedback / Comments *'}</label>
                     <textarea
                       ref={feedbackRef}
                       rows={3}
@@ -1816,7 +1842,7 @@ function ProjectDetails() {
                         setStageInput(prev => ({ ...prev, feedback: e.target.value }));
                         clearValidationError('feedback');
                       }}
-                      placeholder="Mandatory comments for this stage"
+                      placeholder={project?.status === 'sales_followup' ? 'Enter feedback from the client received through Sales' : 'Mandatory comments for this stage'}
                     />
                     {validationErrors.feedback && <div className="field-error-text">{validationErrors.feedback}</div>}
                   </div>
@@ -2054,11 +2080,11 @@ function ProjectDetails() {
           {project.status === 'ceo_approval' && user?.role === 'ceo' ? (
             <>
               <button
-                onClick={() => handleActionClick('client_review', { decision: 'approved' })}
+                onClick={() => handleActionClick('sales_followup', { decision: 'send_to_sales' })}
                 className="btn-primary"
                 disabled={movingNext}
               >
-                {movingNext ? 'Approving...' : 'Approve'}
+                {movingNext ? 'Forwarding...' : 'Send to Sales'}
               </button>
               <button
                 onClick={() => handleActionClick('rejected', { decision: 'rejected' }, 'feedbackOnly')}
@@ -2083,6 +2109,10 @@ function ProjectDetails() {
                 Restart Estimation
               </button>
             </>
+          ) : project.status === 'approved' && user?.role === 'salesperson' ? (
+            <button onClick={() => handleActionClick('supply_chain', { decision: 'send_to_supply_chain' })} className="btn-primary" disabled={movingNext}>
+              {movingNext ? 'Forwarding...' : 'Send to Supply Chain'}
+            </button>
           ) : project.status === 'technical_review' && user?.role === 'technical' ? (
             <>
               <button onClick={() => handleActionClick('estimation')} className="btn-primary" disabled={movingNext}>

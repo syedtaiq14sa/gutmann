@@ -152,6 +152,7 @@
 
 .query-detail-grid {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
   margin-top: 14px;
 }
@@ -164,6 +165,12 @@
 
 .query-detail-description {
   grid-column: 1 / -1;
+}
+
+.task-card .task-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: #1d3557;
 }
 
 .task-section {
@@ -1068,8 +1075,6 @@
   background-color: #c81022;
 }
 
-<<<<<<< HEAD
-=======
 .project-details {
   max-width: none;
 }
@@ -1217,7 +1222,7 @@
   margin-top: 8px;
 }
 
->>>>>>> b07a13114ece7609d7910205da416e77dfcb6c06
+
 .workflow-stages {
   display: flex;
   flex-wrap: wrap;
@@ -1371,3 +1376,4 @@
     gap: 4px;
   }
 }
+

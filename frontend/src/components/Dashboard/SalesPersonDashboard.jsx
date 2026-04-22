@@ -107,7 +107,7 @@ function SalesPersonDashboard() {
 
       {(showInquiryForm || editingQuery) && (
         <div className="modal-overlay" onClick={closeFormModal}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div className="modal-content inquiry-modal-content" onClick={e => e.stopPropagation()}>
             <InquiryForm
               mode={editingQuery ? 'edit' : 'create'}
               initialData={editingQuery || {}}
@@ -120,11 +120,7 @@ function SalesPersonDashboard() {
 
       <div className="kpi-cards">
         <div className="kpi-card">
-<<<<<<< HEAD
           <h3>My Queries</h3>
-=======
-          <h3>Total Queries</h3>
->>>>>>> b07a13114ece7609d7910205da416e77dfcb6c06
           <p className="kpi-value">{queries.length}</p>
         </div>
         <div className="kpi-card alert">
@@ -142,11 +138,7 @@ function SalesPersonDashboard() {
       </div>
 
       <div className="projects-table-section">
-<<<<<<< HEAD
         <h2>My Queries</h2>
-=======
-        <h2>All Queries</h2>
->>>>>>> b07a13114ece7609d7910205da416e77dfcb6c06
         {queries.length === 0 ? (
           <p className="empty-state">No queries found. Create your first query to get started.</p>
         ) : (
@@ -169,16 +161,6 @@ function SalesPersonDashboard() {
                 <td>{new Date(query.created_at).toLocaleDateString()}</td>
                 <td className="query-action-buttons">
                   <button onClick={() => handleViewQuery(query)} className="btn-primary btn-sm">View</button>
-<<<<<<< HEAD
-                  <button onClick={() => openEditModal(query)} className="btn-secondary btn-sm">Edit</button>
-                  <button
-                    onClick={() => handleDeleteQuery(query)}
-                    className="btn-danger btn-sm"
-                    disabled={deletingId === query.id}
-                  >
-                    {deletingId === query.id ? 'Deleting...' : 'Delete'}
-                  </button>
-=======
                   {query.created_by === user?.id && (
                     <>
                       <button onClick={() => openEditModal(query)} className="btn-secondary btn-sm">Edit</button>
@@ -191,7 +173,6 @@ function SalesPersonDashboard() {
                       </button>
                     </>
                   )}
->>>>>>> b07a13114ece7609d7910205da416e77dfcb6c06
                 </td>
               </tr>
             ))}

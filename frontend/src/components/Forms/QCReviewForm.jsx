@@ -19,10 +19,10 @@ function QCReviewForm({ inquiry, titleId, onSuccess, onCancel }) {
   const remarksRef = useRef(null);
   const decisionRef = useRef(null);
   const checklistItems = [
-    { key: 'documents_complete', label: 'All documents are complete' },
-    { key: 'site_survey_required', label: 'Site survey required' },
-    { key: 'client_info_verified', label: 'Client information verified' },
-    { key: 'scope_clear', label: 'Project scope is clear' }
+    { key: 'documents_complete', label: 'All documents are complete', icon: '📄' },
+    { key: 'site_survey_required', label: 'Site survey required', icon: '📍' },
+    { key: 'client_info_verified', label: 'Client information verified', icon: '👤' },
+    { key: 'scope_clear', label: 'Project scope is clear', icon: '🎯' }
   ];
   const completedChecklist = checklistItems.filter((item) => formData.checklist[item.key]).length;
   const allChecklistDone = completedChecklist === checklistItems.length;
@@ -110,85 +110,133 @@ function QCReviewForm({ inquiry, titleId, onSuccess, onCancel }) {
   };
 
   return (
-    <form className="gutmann-form" onSubmit={handleSubmit}>
-      <h2 id={titleId}>QC Review — {inquiry?.inquiry_number}</h2>
+    <form className="gutmann-form qc-review-form" onSubmit={handleSubmit}>
+      <div className="qc-form-header">
+        <h2 id={titleId}>QC Review — {inquiry?.inquiry_number}</h2>
+        <div className="qc-progress-indicator">
+          <div className="progress-bar">
+            <div
+              className="progress-fill"
+              style={{ width: `${(completedChecklist / checklistItems.length) * 100}%` }}
+            ></div>
+          </div>
+          <span className="progress-text">{completedChecklist}/{checklistItems.length} completed</span>
+        </div>
+      </div>
+
       {error && <div className="form-error">{error}</div>}
 
-      <div className="form-section">
-        <h3>QC Checklist</h3>
-        <p className="form-helper-text">Progress: {completedChecklist}/{checklistItems.length} completed</p>
-        <div
-          ref={checklistRef}
-          tabIndex={-1}
-          className={`checklist-card-grid ${validationErrors.checklist ? 'field-error-group' : ''}`}
-        >
-          {checklistItems.map(item => (
-            <div key={item.key} className="checklist-card-item">
-              <div className="form-checkbox">
-            <input
-              type="checkbox"
-              id={item.key}
-              name={item.key}
-              checked={formData.checklist[item.key]}
-              onChange={handleChecklistChange}
-            />
-                <label htmlFor={item.key}>{item.label}</label>
+      <div className="qc-form-body">
+        <div className="form-section qc-checklist-section">
+          <div className="section-header">
+            <h3>📋 QC Checklist</h3>
+            <p className="section-description">Complete all items before approving</p>
+          </div>
+
+          <div
+            ref={checklistRef}
+            tabIndex={-1}
+            className={`qc-checklist-grid ${validationErrors.checklist ? 'field-error-group' : ''}`}
+          >
+            {checklistItems.map(item => (
+              <div key={item.key} className={`qc-checklist-item ${formData.checklist[item.key] ? 'completed' : ''}`}>
+                <label className="qc-checkbox-wrapper">
+                  <input
+                    type="checkbox"
+                    name={item.key}
+                    checked={formData.checklist[item.key]}
+                    onChange={handleChecklistChange}
+                    className="qc-checkbox"
+                  />
+                  <div className="qc-checkbox-display">
+                    <span className="qc-item-icon">{item.icon}</span>
+                    <span className="qc-item-text">{item.label}</span>
+                    <span className="qc-checkmark">✓</span>
+                  </div>
+                </label>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+          {validationErrors.checklist && <div className="field-error-text">{validationErrors.checklist}</div>}
         </div>
-        {validationErrors.checklist && <div className="field-error-text">{validationErrors.checklist}</div>}
-      </div>
 
-      <div className="form-group">
-        <label>Remarks *</label>
-        <textarea
-          ref={remarksRef}
-          name="remarks"
-          value={formData.remarks}
-          onChange={(e) => {
-            handleChange(e);
-            clearValidationError('remarks');
-          }}
-          rows={3}
-          className={validationErrors.remarks ? 'input-error' : ''}
-        />
-        {validationErrors.remarks && <div className="field-error-text">{validationErrors.remarks}</div>}
-      </div>
-
-      <div className="form-group">
-        <label>Decision *</label>
-        <div ref={decisionRef} tabIndex={-1} className={`decision-buttons ${validationErrors.decision ? 'field-error-group' : ''}`}>
-          <button
-            type="button"
-            className={`btn-decision ${formData.decision === 'approved' ? 'active approve' : ''}`}
-            onClick={() => {
-              setFormData({ ...formData, decision: 'approved' });
-              clearValidationError('decision');
-            }}
-          >
-            ✓ Approve
-          </button>
-          <button
-            type="button"
-            className={`btn-decision ${formData.decision === 'rejected' ? 'active reject' : ''}`}
-            onClick={() => {
-              setFormData({ ...formData, decision: 'rejected' });
-              clearValidationError('decision');
-            }}
-          >
-            ✗ Reject
-          </button>
+        <div className="form-section qc-remarks-section">
+          <div className="section-header">
+            <h3>💬 Review Remarks</h3>
+            <p className="section-description">Provide detailed feedback for this review</p>
+          </div>
+          <div className="form-group">
+            <textarea
+              ref={remarksRef}
+              name="remarks"
+              value={formData.remarks}
+              onChange={(e) => {
+                handleChange(e);
+                clearValidationError('remarks');
+              }}
+              rows={4}
+              placeholder="Enter your review comments and observations..."
+              className={`qc-textarea ${validationErrors.remarks ? 'input-error' : ''}`}
+            />
+            {validationErrors.remarks && <div className="field-error-text">{validationErrors.remarks}</div>}
+          </div>
         </div>
-        {validationErrors.decision && <div className="field-error-text">{validationErrors.decision}</div>}
+
+        <div className="form-section qc-decision-section">
+          <div className="section-header">
+            <h3>⚖️ Final Decision</h3>
+            <p className="section-description">Make your approval or rejection decision</p>
+          </div>
+
+          <div ref={decisionRef} tabIndex={-1} className={`qc-decision-buttons ${validationErrors.decision ? 'field-error-group' : ''}`}>
+            <button
+              type="button"
+              className={`qc-decision-btn approve ${formData.decision === 'approved' ? 'active' : ''}`}
+              onClick={() => {
+                setFormData({ ...formData, decision: 'approved' });
+                clearValidationError('decision');
+              }}
+              disabled={!allChecklistDone}
+            >
+              <span className="decision-icon">✓</span>
+              <span className="decision-text">Approve</span>
+              <span className="decision-subtext">Send to Technical</span>
+            </button>
+            <button
+              type="button"
+              className={`qc-decision-btn reject ${formData.decision === 'rejected' ? 'active' : ''}`}
+              onClick={() => {
+                setFormData({ ...formData, decision: 'rejected' });
+                clearValidationError('decision');
+              }}
+            >
+              <span className="decision-icon">✗</span>
+              <span className="decision-text">Reject</span>
+              <span className="decision-subtext">Send to Sales</span>
+            </button>
+          </div>
+          {validationErrors.decision && <div className="field-error-text">{validationErrors.decision}</div>}
+        </div>
       </div>
 
-      <div className="form-actions">
-        <button type="submit" className="btn-primary" disabled={loading || !formData.decision || !formData.remarks.trim()}>
-          {loading ? 'Submitting...' : 'Submit Review'}
+      <div className="qc-form-actions">
+        <button type="submit" className="qc-submit-btn" disabled={loading || !formData.decision || !formData.remarks.trim()}>
+          {loading ? (
+            <>
+              <span className="loading-spinner"></span>
+              Submitting Review...
+            </>
+          ) : (
+            <>
+              <span className="submit-icon">📤</span>
+              Submit Review
+            </>
+          )}
         </button>
         {onCancel && (
-          <button type="button" className="btn-secondary" onClick={onCancel}>Cancel</button>
+          <button type="button" className="qc-cancel-btn" onClick={onCancel} disabled={loading}>
+            Cancel
+          </button>
         )}
       </div>
     </form>

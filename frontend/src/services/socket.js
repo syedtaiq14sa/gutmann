@@ -27,7 +27,6 @@ const socketService = {
     });
 
     socket.on('connect', () => {
-      console.log('Socket connected:', socket.id);
       if (userId) {
         socket.emit('join-room', userId);
       }
@@ -38,7 +37,7 @@ const socketService = {
     });
 
     socket.on('disconnect', () => {
-      console.log('Socket disconnected');
+      // Socket disconnected
     });
 
     return socket;

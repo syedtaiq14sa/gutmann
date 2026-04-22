@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { fetchDashboardData } from '../../store/projectSlice';
 import StageTracker from './StageTracker';
 import api from '../../services/api';
@@ -22,6 +23,7 @@ function CEODashboard() {
   const [processingById, setProcessingById] = useState({});
   const [actionError, setActionError] = useState('');
   const [pendingError, setPendingError] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     dispatch(fetchDashboardData());
@@ -129,8 +131,20 @@ function CEODashboard() {
                     <span>{project.inquiry_number || `Inquiry #${project.id}`}</span>
                     <span className="priority-badge priority-high">approval needed</span>
                   </div>
-                  <p>{project.client_name || 'Unknown Client'}</p>
-                  <p>Quoted Price: ${(firstQuotation?.final_price || 0).toLocaleString()}</p>
+                  <p className="task-title">{project.client_name || 'Unknown Client'}</p>
+                  <div className="query-detail-grid">
+                    <p><strong>Project type:</strong> {project.project_type || 'N/A'}</p>
+                    <p><strong>Location:</strong> {project.location || 'N/A'}</p>
+                    <p><strong>Budget Range:</strong> {project.budget_range || 'N/A'}</p>
+                    <p><strong>Priority:</strong> {project.priority || 'Normal'}</p>
+                    <p><strong>Client company:</strong> {project.client_company || 'N/A'}</p>
+                    <p><strong>Email:</strong> {project.client_email || 'N/A'}</p>
+                    <p><strong>Phone:</strong> {project.client_phone || 'N/A'}</p>
+                    <p><strong>Tech reviews:</strong> {project.technical_reviews?.length || 0}</p>
+                    <p><strong>QC reviews:</strong> {project.qc_reviews?.length || 0}</p>
+                    <p><strong>Quoted Price:</strong> ${(firstQuotation?.final_price || 0).toLocaleString()}</p>
+                    <p className="query-detail-description"><strong>Description:</strong> {project.project_description || 'N/A'}</p>
+                  </div>
                   <div className="ceo-action-buttons">
                     <button
                       onClick={() => handleDecision(inquiryId, DECISIONS.APPROVED)}
@@ -147,6 +161,13 @@ function CEODashboard() {
                       aria-label={`Reject ${project.inquiry_number || `inquiry ${inquiryId}`}`}
                     >
                       {actionLabel || 'Reject'}
+                    </button>
+                    <button
+                      onClick={() => navigate(`/projects/${inquiryId}`)}
+                      className="btn-secondary btn-sm"
+                      type="button"
+                    >
+                      View details
                     </button>
                   </div>
                 </div>
